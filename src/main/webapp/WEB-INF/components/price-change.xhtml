@@ -1,0 +1,21 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets">
+<!--
+  Absolute and percentage change between the two newest stored closes.
+  Params: stock (a Stock with its quote attached), compact (true = % only).
+-->
+<ui:fragment rendered="#{empty stock.percentChange}">
+    <span class="ss-chip flat" title="Not enough stored prices to compare">&#8212;</span>
+</ui:fragment>
+<ui:fragment rendered="#{not empty stock.percentChange}">
+    <span class="ss-chip #{stock.direction}">
+        <i class="bi #{stock.direction eq 'up' ? 'bi-caret-up-fill' : (stock.direction eq 'down' ? 'bi-caret-down-fill' : 'bi-dash')}" aria-hidden="true"></i>
+        <ui:fragment rendered="#{not compact}">
+            <h:outputText value="#{stock.priceChange}"><f:convertNumber pattern="+#,##0.00;-#,##0.00"/></h:outputText>
+        </ui:fragment>
+        <span><ui:fragment rendered="#{not compact}">(</ui:fragment><h:outputText value="#{stock.percentChange}"><f:convertNumber pattern="+0.00;-0.00"/></h:outputText>%<ui:fragment rendered="#{not compact}">)</ui:fragment></span>
+    </span>
+</ui:fragment>
+</ui:composition>

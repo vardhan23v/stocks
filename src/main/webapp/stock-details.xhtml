@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+
+<!--
+  Stock details: stock-details.xhtml?stockId=3&range=3M
+    <f:viewParam>  copies stockId and range into the bean
+    <f:viewAction> calls load() once the parameters have arrived
+  Charts receive their data as JSON in data-chart attributes (stored rows only).
+-->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">#{empty stockDetailsBean.stock ? 'Stock details' : stockDetailsBean.stock.symbol} &#183; StockSense</ui:define>
+
+    <f:metadata>
+        <f:viewParam name="stockId" value="#{stockDetailsBean.stockId}"/>
+        <f:viewParam name="range" value="#{stockDetailsBean.range}"/>
+        <f:viewAction action="#{stockDetailsBean.load}"/>
+    </f:metadata>
+
+    <ui:define name="content">
+        <ui:fragment rendered="#{empty stockDetailsBean.stock}">
+            <div class="ss-card ss-empty">
+                <div class="ss-empty-icon"><i class="bi bi-question-lg" aria-hidden="true"></i></div>
+                <h1 class="h4">Stock not found</h1>
+                <p>The stock could not be loaded. It may have been removed, or the link may be incomplete.</p>
+                <h:link outcome="/stocks.xhtml" value="Back to the stock explorer" styleClass="btn btn-ghost"/>
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{not empty stockDetailsBean.stock}">
+
+
+
+            <nav aria-label="Breadcrumb" class="small mb-2">
+                <h:link outcome="/stocks.xhtml" value="Stocks"/> <span class="ss-faint">/</span> <span class="ss-muted">#{stockDetailsBean.stock.symbol}</span>
+            </nav>
+
+            <!-- Header: name, price, provenance, watchlist button -->
+            <div class="ss-card mb-3">
+                <div class="row g-3 align-items-center">
+                    <div class="col-lg-7">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                            <h1 class="m-0">#{stockDetailsBean.stock.companyName}</h1>
+                            <ui:fragment rendered="#{not stockDetailsBean.stock.active}"><span class="ss-rec SELL">Inactive</span></ui:fragment>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 align-items-center ss-muted small">
+                            <span class="ss-symbol fs-6">#{stockDetailsBean.stock.symbol}</span>
+                            <span class="ss-badge-source">#{stockDetailsBean.stock.exchange}</span>
+                            <span>#{stockDetailsBean.stock.sector}</span><span class="ss-faint">&#183;</span><span>#{stockDetailsBean.stock.industry}</span>
+                        </div>
+                    </div>
+                    <div class="col-lg-5 text-lg-end">
+                        <ui:fragment rendered="#{stockDetailsBean.stock.hasPrice}">
+                            <div class="ss-price-big">
+                                #{stockDetailsBean.stock.currencySymbol}<h:outputText value="#{stockDetailsBean.stock.latestPrice}"><f:convertNumber pattern="#,##0.00"/></h:outputText>
+                            </div>
+                            <div class="mt-1">
+                                <ui:include src="/WEB-INF/components/price-change.xhtml">
+                                    <ui:param name="stock" value="#{stockDetailsBean.stock}"/>
+                                    <ui:param name="compact" value="false"/>
+                                </ui:include>
+                                <span class="small ss-faint ms-1">vs previous close</span>
+                            </div>
+                            <div class="small ss-muted mt-2">
+                                Close of <h:outputText value="#{stockDetailsBean.newestDate}"><f:convertDateTime type="localDate" pattern="EEE, dd MMM yyyy"/></h:outputText>
+                                &#183; <ui:include src="/WEB-INF/components/data-badge.xhtml"><ui:param name="source" value="#{stockDetailsBean.stock.dataSource}"/></ui:include>
+                            </div>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{not stockDetailsBean.stock.hasPrice}">
+                            <div class="ss-muted">No price data is stored for this stock yet.</div>
+                        </ui:fragment>
+                    </div>
+                </div>
+                <hr class="my-3"/>
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <p class="small ss-muted m-0">
+                        Source: <strong>#{stockDetailsBean.dataSourceLabel}</strong> &#183; #{stockDetailsBean.barCount} stored daily bars.
+                        Prices are end-of-day closes, not live quotes.
+                    </p>
+                    <!-- Outside any "is the stock loaded" block, so the postback always finds the button. -->
+                    <h:form id="watchForm" styleClass="m-0">
+                        <h:commandButton value="&#9733; Add to watchlist" action="#{stockDetailsBean.addToWatchlist}"
+                                         styleClass="btn btn-primary" rendered="#{not stockDetailsBean.watched}"/>
+                        <h:commandButton value="Remove from watchlist" action="#{stockDetailsBean.removeFromWatchlist}"
+                                         styleClass="btn btn-ghost" rendered="#{stockDetailsBean.watched}"/>
+                    </h:form>
+                </div>
+            </div>
+
+            <!-- Key statistics -->
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="ss-stat">
+                        <div class="ss-stat-label">Volume</div>
+                        <div class="ss-stat-value ss-stat-small num">
+                            <h:outputText value="#{stockDetailsBean.stock.latestVolume}" rendered="#{not empty stockDetailsBean.stock.latestVolume}"><f:convertNumber pattern="#,##0"/></h:outputText>
+                            <h:outputText value="Not available" rendered="#{empty stockDetailsBean.stock.latestVolume}"/>
+                        </div>
+                        <div class="ss-stat-note">Latest session</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="ss-stat">
+                        <div class="ss-stat-label">#{stockDetailsBean.range} change</div>
+                        <div class="ss-stat-value ss-stat-small num #{stockDetailsBean.rangeDirection}">
+                            <h:outputText value="#{stockDetailsBean.rangeChangePercent}" rendered="#{not empty stockDetailsBean.rangeChangePercent}"><f:convertNumber pattern="+0.00;-0.00"/></h:outputText><h:outputText value="%" rendered="#{not empty stockDetailsBean.rangeChangePercent}"/>
+                            <h:outputText value="&#8212;" rendered="#{empty stockDetailsBean.rangeChangePercent}"/>
+                        </div>
+                        <div class="ss-stat-note">Selected range</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="ss-stat">
+                        <div class="ss-stat-label">52-week high</div>
+                        <div class="ss-stat-value ss-stat-small num">
+                            <h:outputText value="#{stockDetailsBean.high52}" rendered="#{not empty stockDetailsBean.high52}"><f:convertNumber pattern="#,##0.00"/></h:outputText>
+                            <h:outputText value="Not available" rendered="#{empty stockDetailsBean.high52}"/>
+                        </div>
+                        <div class="ss-stat-note">#{stockDetailsBean.range52Note}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="ss-stat">
+                        <div class="ss-stat-label">52-week low</div>
+                        <div class="ss-stat-value ss-stat-small num">
+                            <h:outputText value="#{stockDetailsBean.low52}" rendered="#{not empty stockDetailsBean.low52}"><f:convertNumber pattern="#,##0.00"/></h:outputText>
+                            <h:outputText value="Not available" rendered="#{empty stockDetailsBean.low52}"/>
+                        </div>
+                        <div class="ss-stat-note">#{stockDetailsBean.range52Note}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="ss-stat">
+                        <div class="ss-stat-label">Market cap</div>
+                        <div class="ss-stat-value ss-stat-small num">
+                            <h:outputText value="#{stockDetailsBean.stock.marketCap}" rendered="#{not empty stockDetailsBean.stock.marketCap}"><f:convertNumber pattern="#,##0"/></h:outputText>
+                            <h:outputText value="Not available" rendered="#{empty stockDetailsBean.stock.marketCap}"/>
+                        </div>
+                        <div class="ss-stat-note">#{empty stockDetailsBean.stock.marketCap ? 'Only shown when a provider reports it' : stockDetailsBean.stock.currency.concat(' &#183; ').concat(stockDetailsBean.stock.fundamentalsSource)}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <div class="ss-stat">
+                        <div class="ss-stat-label">Volatility</div>
+                        <div class="ss-stat-value ss-stat-small num">
+                            <h:outputText value="#{stockDetailsBean.indicator.volatility}" rendered="#{not empty stockDetailsBean.indicator.volatility}"><f:convertNumber pattern="0.0"/></h:outputText><h:outputText value="%" rendered="#{not empty stockDetailsBean.indicator.volatility}"/>
+                            <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.volatility}"/>
+                        </div>
+                        <div class="ss-stat-note">Annualised, last 60 sessions</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <!-- Charts -->
+                <div class="col-xl-8">
+                    <div class="ss-card">
+                        <div class="ss-card-head flex-wrap">
+                            <h2>Price history</h2>
+                            <div class="ss-segmented" role="group" aria-label="Chart range">
+                                <span class="is-disabled" title="Intraday data is not available: the provider supplies end-of-day bars only">1D</span>
+                                <ui:repeat value="#{stockDetailsBean.ranges}" var="r">
+                                    <ui:fragment rendered="#{r.available}">
+                                        <h:link outcome="/stock-details.xhtml" value="#{r.code}" title="#{r.label}"
+                                                styleClass="#{r.code eq stockDetailsBean.range ? 'is-active' : ''}">
+                                            <f:param name="stockId" value="#{stockDetailsBean.stock.id}"/>
+                                            <f:param name="range" value="#{r.code}"/>
+                                        </h:link>
+                                    </ui:fragment>
+                                    <ui:fragment rendered="#{not r.available}">
+                                        <span class="is-disabled" title="Not enough stored history for #{r.label}">#{r.code}</span>
+                                    </ui:fragment>
+                                </ui:repeat>
+                            </div>
+                        </div>
+                        <ui:fragment rendered="#{stockDetailsBean.sampleData}">
+                            <p class="small mb-2"><span class="ss-badge-sample">Sample data</span> <span class="ss-muted">Synthetic series for demonstration - not real prices.</span></p>
+                        </ui:fragment>
+                        <div class="ss-chart ss-chart-lg" data-chart-kind="price" data-chart="#{stockDetailsBean.chartJson}"></div>
+                        <h3 class="mt-4 mb-2 small ss-faint text-uppercase">Volume</h3>
+                        <div class="ss-chart ss-chart-sm" data-chart-kind="volume" data-chart="#{stockDetailsBean.chartJson}"></div>
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-6">
+                                <h3 class="mb-2 small ss-faint text-uppercase">RSI (14)</h3>
+                                <div class="ss-chart ss-chart-md" data-chart-kind="rsi" data-chart="#{stockDetailsBean.chartJson}"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <h3 class="mb-2 small ss-faint text-uppercase">MACD (12, 26, 9)</h3>
+                                <div class="ss-chart ss-chart-md" data-chart-kind="macd" data-chart="#{stockDetailsBean.chartJson}"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recommendation -->
+                <div class="col-xl-4">
+                    <div class="ss-rec-card #{stockDetailsBean.recommendation.recommendationType}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="m-0 fs-6">Rule-based recommendation</h2>
+                            <ui:include src="/WEB-INF/components/rec-badge.xhtml"><ui:param name="rec" value="#{stockDetailsBean.recommendation}"/></ui:include>
+                        </div>
+                        <ui:fragment rendered="#{not empty stockDetailsBean.recommendation and not stockDetailsBean.recommendation.insufficient}">
+                            <div>
+                                <div class="d-flex justify-content-between small ss-faint mb-1"><span>SELL</span><span>Score <span class="num ss-muted">#{stockDetailsBean.recommendation.recommendationScore}</span></span><span>BUY</span></div>
+                                <ui:include src="/WEB-INF/components/score-bar.xhtml"><ui:param name="rec" value="#{stockDetailsBean.recommendation}"/></ui:include>
+                            </div>
+                        </ui:fragment>
+                        <ul class="ss-reasons">
+                            <ui:repeat value="#{stockDetailsBean.recommendation.reasons}" var="reason"><li>#{reason}</li></ui:repeat>
+                        </ul>
+                        <div class="small ss-faint">
+                            Generated <h:outputText value="#{stockDetailsBean.recommendation.generatedAt}"><f:convertDateTime type="localDateTime" pattern="dd MMM yyyy, HH:mm"/></h:outputText>
+                            from data of <h:outputText value="#{stockDetailsBean.recommendation.dataTimestamp}"><f:convertDateTime type="localDateTime" pattern="dd MMM yyyy"/></h:outputText>
+                            (#{stockDetailsBean.recommendation.dataSource eq 'SAMPLE' ? 'SAMPLE DATA' : stockDetailsBean.recommendation.dataSource}).
+                        </div>
+                        <p class="ss-disclaimer m-0">
+                            Educational output of fixed technical rules, not personalised financial advice.
+                            <h:link outcome="/recommendations.xhtml" value="How the score works"/>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Indicators -->
+            <div class="ss-card mb-3">
+                <div class="ss-card-head">
+                    <h2>Technical indicators</h2>
+                    <span class="small ss-faint">Latest values, calculated in Java from #{stockDetailsBean.barCount} stored bars</span>
+                </div>
+                <div class="row g-3">
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">SMA 20</div>
+                            <div class="ss-indicator-value num">
+                                <h:outputText value="#{stockDetailsBean.indicator.sma}" rendered="#{not empty stockDetailsBean.indicator.sma}"><f:convertNumber pattern="#,##0.00"/></h:outputText>
+                                <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.sma}"/>
+                            </div>
+                            <div class="ss-indicator-help">
+                                Average close of the last 20 sessions.
+                                <ui:fragment rendered="#{not empty stockDetailsBean.distanceFromSma}">
+                                    The price is <span class="num #{stockDetailsBean.distanceFromSma ge 0 ? 'up' : 'down'}">#{stockDetailsBean.distanceFromSma}%</span> from it.
+                                </ui:fragment>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">SMA 50</div>
+                            <div class="ss-indicator-value num">
+                                <h:outputText value="#{stockDetailsBean.indicator.smaLong}" rendered="#{not empty stockDetailsBean.indicator.smaLong}"><f:convertNumber pattern="#,##0.00"/></h:outputText>
+                                <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.smaLong}"/>
+                            </div>
+                            <div class="ss-indicator-help">Longer-term trend. SMA 20 above SMA 50 is commonly read as a short-term uptrend.</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">EMA 20</div>
+                            <div class="ss-indicator-value num">
+                                <h:outputText value="#{stockDetailsBean.indicator.ema}" rendered="#{not empty stockDetailsBean.indicator.ema}"><f:convertNumber pattern="#,##0.00"/></h:outputText>
+                                <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.ema}"/>
+                            </div>
+                            <div class="ss-indicator-help">Like SMA 20 but weights recent closes more, so it reacts faster.</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">RSI 14</div>
+                            <div class="ss-indicator-value num">
+                                <h:outputText value="#{stockDetailsBean.indicator.rsi}" rendered="#{not empty stockDetailsBean.indicator.rsi}"><f:convertNumber pattern="0.0"/></h:outputText>
+                                <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.rsi}"/>
+                            </div>
+                            <div class="ss-indicator-help">#{stockDetailsBean.indicator.rsiZone}.</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">MACD</div>
+                            <div class="ss-indicator-value num">
+                                <h:outputText value="#{stockDetailsBean.indicator.macd}" rendered="#{not empty stockDetailsBean.indicator.macd}"><f:convertNumber pattern="0.000"/></h:outputText>
+                                <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.macd}"/>
+                            </div>
+                            <div class="ss-indicator-help">EMA 12 minus EMA 26: positive when short-term momentum is stronger.</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">Signal line</div>
+                            <div class="ss-indicator-value num">
+                                <h:outputText value="#{stockDetailsBean.indicator.signalLine}" rendered="#{not empty stockDetailsBean.indicator.signalLine}"><f:convertNumber pattern="0.000"/></h:outputText>
+                                <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.signalLine}"/>
+                            </div>
+                            <div class="ss-indicator-help">
+                                9-period EMA of MACD.
+                                <ui:fragment rendered="#{not empty stockDetailsBean.indicator.macdHistogram}">MACD is #{stockDetailsBean.indicator.macdHistogram ge 0 ? 'above' : 'below'} it (histogram <span class="num">#{stockDetailsBean.indicator.macdHistogram}</span>).</ui:fragment>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">20-session change</div>
+                            <div class="ss-indicator-value num #{empty stockDetailsBean.indicator.momentum ? '' : (stockDetailsBean.indicator.momentum ge 0 ? 'up' : 'down')}">
+                                <h:outputText value="#{stockDetailsBean.indicator.momentum}" rendered="#{not empty stockDetailsBean.indicator.momentum}"><f:convertNumber pattern="+0.00;-0.00"/></h:outputText><h:outputText value="%" rendered="#{not empty stockDetailsBean.indicator.momentum}"/>
+                                <h:outputText value="Insufficient data" rendered="#{empty stockDetailsBean.indicator.momentum}"/>
+                            </div>
+                            <div class="ss-indicator-help">Price momentum over roughly one month of trading.</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="ss-indicator">
+                            <div class="ss-indicator-name">Volume vs average</div>
+                            <div class="ss-indicator-value num">
+                                <h:outputText value="#{stockDetailsBean.indicator.volumeRatio}" rendered="#{not empty stockDetailsBean.indicator.volumeRatio}"><f:convertNumber pattern="0.00"/></h:outputText><h:outputText value="&#215;" rendered="#{not empty stockDetailsBean.indicator.volumeRatio}"/>
+                                <h:outputText value="Not available" rendered="#{empty stockDetailsBean.indicator.volumeRatio}"/>
+                            </div>
+                            <div class="ss-indicator-help">Latest volume divided by the 20-session average.</div>
+                        </div>
+                    </div>
+                </div>
+                <p class="small ss-faint mt-3 mb-0">
+                    These readings are common analytical interpretations, not guaranteed buy or sell signals.
+                </p>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-lg-8">
+                    <div class="ss-card ss-card-flush">
+                        <div class="ss-card-head">
+                            <h2>Daily prices &#183; #{stockDetailsBean.range}</h2>
+                            <ui:include src="/WEB-INF/components/data-badge.xhtml"><ui:param name="source" value="#{stockDetailsBean.dataSource}"/></ui:include>
+                        </div>
+                        <ui:fragment rendered="#{empty stockDetailsBean.rangeBars}">
+                            <div class="ss-empty">No stored prices for this range.</div>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{not empty stockDetailsBean.rangeBars}">
+                            <div class="table-responsive ss-scroll mt-2">
+                                <table class="table table-sm ss-table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Date</th>
+                                            <th scope="col" class="num text-end">Open</th>
+                                            <th scope="col" class="num text-end">High</th>
+                                            <th scope="col" class="num text-end">Low</th>
+                                            <th scope="col" class="num text-end">Close</th>
+                                            <th scope="col" class="num text-end">Volume</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <ui:repeat value="#{stockDetailsBean.rangeBars}" var="b">
+                                            <tr>
+                                                <td class="num"><h:outputText value="#{b.recordedAt}"><f:convertDateTime type="localDateTime" pattern="dd MMM yyyy"/></h:outputText></td>
+                                                <td class="num text-end"><h:outputText value="#{b.openPrice}"><f:convertNumber pattern="#,##0.00"/></h:outputText></td>
+                                                <td class="num text-end"><h:outputText value="#{b.highPrice}"><f:convertNumber pattern="#,##0.00"/></h:outputText></td>
+                                                <td class="num text-end"><h:outputText value="#{b.lowPrice}"><f:convertNumber pattern="#,##0.00"/></h:outputText></td>
+                                                <td class="num text-end fw-semibold"><h:outputText value="#{b.closePrice}"><f:convertNumber pattern="#,##0.00"/></h:outputText></td>
+                                                <td class="num text-end ss-muted"><h:outputText value="#{b.volume}"><f:convertNumber pattern="#,##0"/></h:outputText></td>
+                                            </tr>
+                                        </ui:repeat>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </ui:fragment>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="ss-card">
+                        <h2 class="fs-6">About #{stockDetailsBean.stock.companyName}</h2>
+                        <p class="ss-muted small">#{empty stockDetailsBean.stock.description ? 'No description has been added.' : stockDetailsBean.stock.description}</p>
+                        <dl class="row small mb-0">
+                            <dt class="col-5 ss-faint fw-normal">Ticker</dt><dd class="col-7">#{stockDetailsBean.stock.symbol}</dd>
+                            <dt class="col-5 ss-faint fw-normal">Exchange</dt><dd class="col-7">#{stockDetailsBean.stock.exchange}</dd>
+                            <dt class="col-5 ss-faint fw-normal">Provider symbol</dt><dd class="col-7 mono">#{stockDetailsBean.stock.apiSymbol}</dd>
+                            <dt class="col-5 ss-faint fw-normal">Currency</dt><dd class="col-7">#{stockDetailsBean.stock.currency}</dd>
+                            <dt class="col-5 ss-faint fw-normal">Sector</dt><dd class="col-7">#{stockDetailsBean.stock.sector}</dd>
+                            <dt class="col-5 ss-faint fw-normal">Industry</dt><dd class="col-7 mb-0">#{stockDetailsBean.stock.industry}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </ui:fragment>
+    </ui:define>
+</ui:composition>
+</html>

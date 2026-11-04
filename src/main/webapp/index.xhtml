@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:ui="jakarta.faces.facelets">
+
+<!-- Public landing page. -->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">StockSense &#183; Explainable stock analysis</ui:define>
+
+    <ui:define name="content">
+        <section class="ss-hero">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-6">
+                    <p class="ss-eyebrow">Stocks Recommendations System</p>
+                    <h1>Read the market, one indicator at a time.</h1>
+                    <p class="lead mt-3">
+                        Explore Indian and US stocks, study their price history, see SMA, EMA, RSI and MACD
+                        explained in plain words, and get a transparent BUY / HOLD / SELL score that shows
+                        every reason behind it.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2 mt-4">
+                        <ui:fragment rendered="#{not loginBean.loggedIn}">
+                            <h:link outcome="/register.xhtml" value="Create a free account" styleClass="btn btn-primary btn-lg"/>
+                            <h:link outcome="/login.xhtml" value="Log in" styleClass="btn btn-ghost btn-lg"/>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{loginBean.loggedIn}">
+                            <h:link outcome="#{loginBean.admin ? '/admin-dashboard.xhtml' : '/dashboard.xhtml'}" value="Go to your dashboard" styleClass="btn btn-primary btn-lg"/>
+                        </ui:fragment>
+                    </div>
+                    <p class="ss-disclaimer mt-4 mb-0">
+                        For education and information only. Recommendations are produced by fixed, documented
+                        rules - they are not personalised financial advice and do not guarantee returns.
+                    </p>
+                </div>
+                <div class="col-lg-6">
+                    <div class="ss-hero-panel">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <div class="ss-eyebrow mb-1">Example explanation</div>
+                                <div class="ss-heading fs-4">INFY &#183; Infosys</div>
+                            </div>
+                            <span class="ss-rec HOLD">Hold</span>
+                        </div>
+                        <ul class="ss-reasons">
+                            <li>RSI(14) is within the neutral 30-70 range. (0)</li>
+                            <li>Short-term and long-term moving averages do not show a strong trend. (0)</li>
+                            <li>MACD is above its signal line: momentum is turning positive. (+15)</li>
+                            <li>Overall the available indicators are mixed, so the engine suggests HOLD.</li>
+                        </ul>
+                        <p class="small ss-faint mt-3 mb-0">Illustration of the format only - real explanations are generated from stored price data.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="row g-3 mt-2">
+            <div class="col-sm-6 col-lg-3">
+                <div class="ss-card">
+                    <div class="ss-feature-icon"><i class="bi bi-search" aria-hidden="true"></i></div>
+                    <h3>Explore</h3>
+                    <p class="ss-muted small mb-0">Search NASDAQ and BSE listings by ticker or company, filter by sector and sort by movement.</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="ss-card">
+                    <div class="ss-feature-icon"><i class="bi bi-graph-up" aria-hidden="true"></i></div>
+                    <h3>Analyse</h3>
+                    <p class="ss-muted small mb-0">Interactive price, volume, RSI and MACD charts with moving-average overlays from 1 week to 1 year.</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="ss-card">
+                    <div class="ss-feature-icon"><i class="bi bi-lightbulb" aria-hidden="true"></i></div>
+                    <h3>Understand</h3>
+                    <p class="ss-muted small mb-0">Every recommendation lists the signals and weights that produced it. Too little data? It says so.</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="ss-card">
+                    <div class="ss-feature-icon"><i class="bi bi-star" aria-hidden="true"></i></div>
+                    <h3>Watch</h3>
+                    <p class="ss-muted small mb-0">Keep a private watchlist and see at a glance which of your stocks moved, and by how much.</p>
+                </div>
+            </div>
+        </section>
+    </ui:define>
+</ui:composition>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="jakarta.faces.passthrough">
+
+<!-- Login form. Navigation after login is defined in faces-config.xml. -->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">Log in &#183; StockSense</ui:define>
+
+    <ui:define name="content">
+        <div class="ss-auth">
+            <div class="ss-card">
+                <p class="ss-eyebrow">Welcome back</p>
+                <h1 class="mb-4">Log in to StockSense</h1>
+
+                <h:messages globalOnly="true" layout="list" styleClass="ss-messages"
+                            infoClass="ss-alert ss-alert-info" errorClass="ss-alert ss-alert-error"
+                            warnClass="ss-alert ss-alert-warn"/>
+
+                <h:form id="loginForm">
+                    <div class="mb-3">
+                        <h:outputLabel for="email" value="Email" styleClass="form-label"/>
+                        <h:inputText id="email" value="#{loginBean.email}" styleClass="form-control"
+                                     p:type="email" p:autocomplete="username" p:required="required"
+                                     p:autofocus="autofocus"/>
+                    </div>
+                    <div class="mb-4">
+                        <h:outputLabel for="password" value="Password" styleClass="form-label"/>
+                        <h:inputSecret id="password" value="#{loginBean.password}" styleClass="form-control"
+                                       p:autocomplete="current-password" p:required="required"/>
+                    </div>
+                    <h:commandButton value="Log in" action="#{loginBean.login}" styleClass="btn btn-primary w-100"/>
+                </h:form>
+
+                <p class="mt-3 mb-0 small ss-muted">
+                    New here? <h:link outcome="/register.xhtml" value="Create an account"/>
+                </p>
+            </div>
+
+            <div class="ss-demo-box mt-3">
+                <strong>Demo accounts</strong> (from sample-data.sql, see README):<br/>
+                Admin: <span class="mono">admin@stocksense.test</span> / <span class="mono">Admin@123</span><br/>
+                User: <span class="mono">priya@stocksense.test</span> / <span class="mono">User@1234</span>
+            </div>
+        </div>
+    </ui:define>
+</ui:composition>
+</html>

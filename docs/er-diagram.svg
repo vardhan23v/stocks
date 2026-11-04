@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">stock_recommendation_db entity relationship diagram</title>
+  <desc id="d">Tables users, stocks, stock_prices, stock_indicators, recommendations, watchlists, stock_views, api_sync_logs, recommendation_rules and activity_logs with their foreign keys.</desc>
+  <defs>
+    <style>
+      .t { fill: #ffffff; stroke: #c9cfda; stroke-width: 1.4; }
+      .h { fill: #eef1ff; }
+      .name { font-size: 13px; font-weight: 700; fill: #161a22; }
+      .c { font-family: Menlo, Consolas, monospace; font-size: 11px; fill: #3c4352; }
+      .pk { font-family: Menlo, Consolas, monospace; font-size: 11px; fill: #3346c9; font-weight: 700; }
+      .fk { font-family: Menlo, Consolas, monospace; font-size: 11px; fill: #a0570b; }
+      .rel { stroke: #5b6475; stroke-width: 1.4; fill: none; }
+      .lbl { font-size: 10.5px; fill: #6b7383; }
+    </style>
+  </defs>
+  <rect width="1000" height="700" fill="#f6f7fa"/>
+  <text x="28" y="34" font-size="19" font-weight="700" fill="#161a22">stock_recommendation_db</text>
+  <text x="28" y="54" font-size="11.5" fill="#6b7383">PK blue &#183; FK orange &#183; 1 &#8212;&lt; many &#183; all FKs ON DELETE CASCADE except activity_logs.user_id (SET NULL)</text>
+
+  <!-- users -->
+  <rect class="t" x="28" y="80" width="230" height="150" rx="8"/>
+  <rect class="h" x="29" y="81" width="228" height="26" rx="8"/>
+  <text class="name" x="40" y="99">users</text>
+  <text class="pk" x="40" y="124">id INT</text>
+  <text class="c" x="40" y="141">name, email UNIQUE</text>
+  <text class="c" x="40" y="158">password_hash VARCHAR(255)</text>
+  <text class="c" x="40" y="175">role ENUM(USER, ADMIN)</text>
+  <text class="c" x="40" y="192">is_active BOOLEAN</text>
+  <text class="c" x="40" y="209">created_at, updated_at</text>
+
+  <!-- watchlists -->
+  <rect class="t" x="330" y="80" width="230" height="118" rx="8"/>
+  <rect class="h" x="331" y="81" width="228" height="26" rx="8"/>
+  <text class="name" x="342" y="99">watchlists</text>
+  <text class="pk" x="342" y="124">id INT</text>
+  <text class="fk" x="342" y="141">user_id &#8594; users</text>
+  <text class="fk" x="342" y="158">stock_id &#8594; stocks</text>
+  <text class="c" x="342" y="175">added_at</text>
+  <text class="c" x="342" y="192">UNIQUE(user_id, stock_id)</text>
+
+  <!-- stock_views -->
+  <rect class="t" x="330" y="222" width="230" height="118" rx="8"/>
+  <rect class="h" x="331" y="223" width="228" height="26" rx="8"/>
+  <text class="name" x="342" y="241">stock_views</text>
+  <text class="pk" x="342" y="266">id BIGINT</text>
+  <text class="fk" x="342" y="283">user_id &#8594; users</text>
+  <text class="fk" x="342" y="300">stock_id &#8594; stocks</text>
+  <text class="c" x="342" y="317">viewed_at &#183; UNIQUE(user_id, stock_id)</text>
+
+  <!-- activity_logs -->
+  <rect class="t" x="28" y="262" width="230" height="100" rx="8"/>
+  <rect class="h" x="29" y="263" width="228" height="26" rx="8"/>
+  <text class="name" x="40" y="281">activity_logs</text>
+  <text class="pk" x="40" y="306">id BIGINT</text>
+  <text class="fk" x="40" y="323">user_id &#8594; users (NULL ok)</text>
+  <text class="c" x="40" y="340">action, details, created_at</text>
+
+  <!-- stocks -->
+  <rect class="t" x="632" y="80" width="340" height="200" rx="8"/>
+  <rect class="h" x="633" y="81" width="338" height="26" rx="8"/>
+  <text class="name" x="644" y="99">stocks</text>
+  <text class="pk" x="644" y="124">id INT</text>
+  <text class="c" x="644" y="141">company_name, symbol, exchange</text>
+  <text class="c" x="644" y="158">UNIQUE(exchange, symbol)</text>
+  <text class="c" x="644" y="175">api_symbol, currency CHAR(3)</text>
+  <text class="c" x="644" y="192">sector, industry, description TEXT</text>
+  <text class="c" x="644" y="209">market_cap DECIMAL(22,2) NULL</text>
+  <text class="c" x="644" y="226">week52_high / week52_low DECIMAL(19,4) NULL</text>
+  <text class="c" x="644" y="243">fundamentals_source, fundamentals_updated_at</text>
+  <text class="c" x="644" y="260">is_active, created_at, updated_at</text>
+
+  <!-- stock_prices -->
+  <rect class="t" x="632" y="320" width="340" height="168" rx="8"/>
+  <rect class="h" x="633" y="321" width="338" height="26" rx="8"/>
+  <text class="name" x="644" y="339">stock_prices</text>
+  <text class="pk" x="644" y="364">id BIGINT</text>
+  <text class="fk" x="644" y="381">stock_id &#8594; stocks</text>
+  <text class="c" x="644" y="398">open/high/low/close/adjusted_close DECIMAL(19,4)</text>
+  <text class="c" x="644" y="415">volume BIGINT NULL, recorded_at DATETIME</text>
+  <text class="c" x="644" y="432">data_source ('SAMPLE' | 'ALPHA_VANTAGE')</text>
+  <text class="c" x="644" y="449">UNIQUE(stock_id, recorded_at, data_source)</text>
+  <text class="c" x="644" y="466">created_at = cache timestamp</text>
+
+  <!-- stock_indicators -->
+  <rect class="t" x="330" y="360" width="250" height="150" rx="8"/>
+  <rect class="h" x="331" y="361" width="248" height="26" rx="8"/>
+  <text class="name" x="342" y="379">stock_indicators</text>
+  <text class="pk" x="342" y="404">id BIGINT</text>
+  <text class="fk" x="342" y="421">stock_id &#8594; stocks</text>
+  <text class="c" x="342" y="438">sma, sma_long, ema, rsi</text>
+  <text class="c" x="342" y="455">macd, signal_line, volatility</text>
+  <text class="c" x="342" y="472">data_source, data_timestamp</text>
+  <text class="c" x="342" y="489">calculated_at</text>
+
+  <!-- recommendations -->
+  <rect class="t" x="330" y="534" width="262" height="150" rx="8"/>
+  <rect class="h" x="331" y="535" width="260" height="26" rx="8"/>
+  <text class="name" x="342" y="553">recommendations</text>
+  <text class="pk" x="342" y="578">id BIGINT</text>
+  <text class="fk" x="342" y="595">stock_id &#8594; stocks</text>
+  <text class="c" x="342" y="612">recommendation_type ENUM(BUY, HOLD,</text>
+  <text class="c" x="342" y="629">  SELL, INSUFFICIENT_DATA)</text>
+  <text class="c" x="342" y="646">recommendation_score DECIMAL(6,2)</text>
+  <text class="c" x="342" y="663">explanation, supporting_json, data_*</text>
+
+  <!-- standalone -->
+  <rect class="t" x="28" y="420" width="250" height="118" rx="8"/>
+  <rect class="h" x="29" y="421" width="248" height="26" rx="8"/>
+  <text class="name" x="40" y="439">recommendation_rules</text>
+  <text class="pk" x="40" y="464">id INT</text>
+  <text class="c" x="40" y="481">rule_key UNIQUE, name, description</text>
+  <text class="c" x="40" y="498">weight, param_low, param_high</text>
+  <text class="c" x="40" y="515">enabled, updated_at</text>
+
+  <rect class="t" x="28" y="566" width="250" height="118" rx="8"/>
+  <rect class="h" x="29" y="567" width="248" height="26" rx="8"/>
+  <text class="name" x="40" y="585">api_sync_logs</text>
+  <text class="pk" x="40" y="610">id BIGINT</text>
+  <text class="c" x="40" y="627">provider, symbol</text>
+  <text class="c" x="40" y="644">status ENUM(SUCCESS, CACHED, ...)</text>
+  <text class="c" x="40" y="661">response_message, synced_at</text>
+
+  <!-- relationships -->
+  <path class="rel" d="M258 140 H330"/><text class="lbl" x="262" y="134">1</text><text class="lbl" x="318" y="134">&#8734;</text>
+  <path class="rel" d="M258 180 H294 V285 H330"/>
+  <path class="rel" d="M143 230 V262"/><text class="lbl" x="148" y="252">1 &#8212; &#8734;</text>
+  <path class="rel" d="M560 150 H632"/><text class="lbl" x="566" y="144">&#8734;</text><text class="lbl" x="620" y="144">1</text>
+  <path class="rel" d="M560 285 H596 V200 H632"/>
+  <path class="rel" d="M802 280 V320"/><text class="lbl" x="808" y="304">1 &#8212; &#8734;</text>
+  <path class="rel" d="M632 260 H604 V430 H580"/><text class="lbl" x="586" y="424">&#8734;</text>
+  <path class="rel" d="M652 280 V300 H612 V600 H592"/><text class="lbl" x="596" y="594">&#8734;</text>
+  <text class="lbl" x="28" y="404">standalone tables:</text>
+</svg>

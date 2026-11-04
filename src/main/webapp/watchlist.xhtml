@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+
+<!--
+  The logged-in user's private watchlist. There is no user id in the URL:
+  WatchlistBean always uses the session user.
+-->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">Watchlist &#183; StockSense</ui:define>
+
+    <f:metadata>
+        <f:viewParam name="sort" value="#{watchlistBean.sort}"/>
+        <f:viewAction action="#{watchlistBean.load}"/>
+    </f:metadata>
+
+    <ui:define name="content">
+        <div class="ss-page-head">
+            <div>
+                <p class="ss-eyebrow">Private to you</p>
+                <h1>Your watchlist</h1>
+            </div>
+            <h:form id="addForm" styleClass="d-flex gap-2 ss-add-form">
+                <h:outputLabel for="stock" value="Add a stock" styleClass="visually-hidden"/>
+                <h:selectOneMenu id="stock" value="#{watchlistBean.selectedStockId}" styleClass="form-select">
+                    <f:selectItem itemLabel="Add a stock..." itemValue="#{null}" noSelectionOption="true"/>
+                    <f:selectItems value="#{watchlistBean.availableStocks}" var="st" itemValue="#{st.id}"
+                                   itemLabel="#{st.symbol} - #{st.companyName}"/>
+                </h:selectOneMenu>
+                <h:commandButton value="Add" action="#{watchlistBean.add}" styleClass="btn btn-primary"/>
+            </h:form>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-4">
+                <div class="ss-stat">
+                    <div class="ss-stat-label">Stocks</div>
+                    <div class="ss-stat-value">#{watchlistBean.entries.size()}</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="ss-stat">
+                    <div class="ss-stat-label">Rising</div>
+                    <div class="ss-stat-value up">#{watchlistBean.gainersCount}</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="ss-stat">
+                    <div class="ss-stat-label">Falling</div>
+                    <div class="ss-stat-value down">#{watchlistBean.decliningCount}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ss-card ss-card-flush">
+            <div class="ss-card-head flex-wrap">
+                <h2>Price movement</h2>
+                <nav class="ss-segmented" aria-label="Sort watchlist">
+                    <h:link outcome="/watchlist.xhtml" value="Biggest gain" styleClass="#{watchlistBean.sort eq 'change_desc' ? 'is-active' : ''}"><f:param name="sort" value="change_desc"/></h:link>
+                    <h:link outcome="/watchlist.xhtml" value="Biggest fall" styleClass="#{watchlistBean.sort eq 'change_asc' ? 'is-active' : ''}"><f:param name="sort" value="change_asc"/></h:link>
+                    <h:link outcome="/watchlist.xhtml" value="Ticker" styleClass="#{watchlistBean.sort eq 'symbol' ? 'is-active' : ''}"><f:param name="sort" value="symbol"/></h:link>
+                    <h:link outcome="/watchlist.xhtml" value="Recently added" styleClass="#{watchlistBean.sort eq 'added' ? 'is-active' : ''}"><f:param name="sort" value="added"/></h:link>
+                </nav>
+            </div>
+
+            <ui:fragment rendered="#{empty watchlistBean.entries}">
+                <div class="ss-empty">
+                    <div class="ss-empty-icon"><i class="bi bi-star" aria-hidden="true"></i></div>
+                    <p>You are not watching any stocks yet.</p>
+                    <h:link outcome="/stocks.xhtml" value="Explore stocks" styleClass="btn btn-ghost btn-sm"/>
+                </div>
+            </ui:fragment>
+
+            <h:form id="watchlistForm" rendered="#{not empty watchlistBean.entries}">
+                <div class="table-responsive mt-2">
+                    <table class="table table-hover ss-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Stock</th>
+                                <th scope="col" class="num text-end">Latest close</th>
+                                <th scope="col" class="text-end">Change</th>
+                                <th scope="col" class="d-none d-md-table-cell">As of</th>
+                                <th scope="col" class="d-none d-lg-table-cell">Added</th>
+                                <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ui:repeat value="#{watchlistBean.entries}" var="w">
+                                <tr>
+                                    <td>
+                                        <h:link outcome="/stock-details.xhtml" styleClass="ss-symbol">
+                                            <f:param name="stockId" value="#{w.stock.id}"/>#{w.stock.symbol}
+                                        </h:link>
+                                        <span class="ss-faint small ms-1">#{w.stock.exchange}</span>
+                                        <div class="ss-company">#{w.stock.companyName}</div>
+                                        <ui:fragment rendered="#{not w.stock.active}"><span class="small down">No longer listed</span></ui:fragment>
+                                    </td>
+                                    <td class="num text-end fw-semibold">
+                                        <ui:fragment rendered="#{w.stock.hasPrice}">#{w.stock.currencySymbol}<h:outputText value="#{w.stock.latestPrice}"><f:convertNumber pattern="#,##0.00"/></h:outputText></ui:fragment>
+                                        <ui:fragment rendered="#{not w.stock.hasPrice}"><span class="ss-faint">No data</span></ui:fragment>
+                                    </td>
+                                    <td class="text-end">
+                                        <ui:include src="/WEB-INF/components/price-change.xhtml">
+                                            <ui:param name="stock" value="#{w.stock}"/>
+                                            <ui:param name="compact" value="false"/>
+                                        </ui:include>
+                                    </td>
+                                    <td class="d-none d-md-table-cell small">
+                                        <h:outputText value="#{w.stock.lastUpdated}" rendered="#{not empty w.stock.lastUpdated}"><f:convertDateTime type="localDateTime" pattern="dd MMM yyyy"/></h:outputText>
+                                        <div><ui:include src="/WEB-INF/components/data-badge.xhtml"><ui:param name="source" value="#{w.stock.dataSource}"/></ui:include></div>
+                                    </td>
+                                    <td class="d-none d-lg-table-cell small ss-muted">
+                                        <h:outputText value="#{w.addedAt}"><f:convertDateTime type="localDateTime" pattern="dd MMM yyyy"/></h:outputText>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <h:link outcome="/stock-details.xhtml" value="Details" styleClass="btn btn-sm btn-ghost me-1">
+                                            <f:param name="stockId" value="#{w.stock.id}"/>
+                                        </h:link>
+                                        <h:commandButton value="Remove" action="#{watchlistBean.remove(w.stockId)}" styleClass="btn btn-sm btn-danger-soft"
+                                                         onclick="return confirm('Remove #{w.stock.symbol} from your watchlist?');"/>
+                                    </td>
+                                </tr>
+                            </ui:repeat>
+                        </tbody>
+                    </table>
+                </div>
+            </h:form>
+        </div>
+        <p class="small ss-faint mt-2">Change compares the two most recent stored closes of each stock.</p>
+    </ui:define>
+</ui:composition>
+</html>

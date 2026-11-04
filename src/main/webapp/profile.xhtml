@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="jakarta.faces.passthrough">
+
+<!-- Profile: account details, name change and password change. -->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">Profile &#183; StockSense</ui:define>
+
+    <ui:define name="content">
+        <div class="ss-page-head">
+            <div>
+                <p class="ss-eyebrow">Account</p>
+                <h1>Your profile</h1>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="ss-card">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="ss-avatar" style="width: 52px; height: 52px; font-size: 1.1rem;">#{loginBean.initials}</span>
+                        <div>
+                            <div class="fw-semibold fs-5">#{profileBean.profile.name}</div>
+                            <span class="ss-role-pill">#{profileBean.profile.role}</span>
+                        </div>
+                    </div>
+                    <dl class="row small mb-0">
+                        <dt class="col-5 ss-faint fw-normal">Email</dt><dd class="col-7 text-break">#{profileBean.profile.email}</dd>
+                        <dt class="col-5 ss-faint fw-normal">Member since</dt>
+                        <dd class="col-7"><h:outputText value="#{profileBean.profile.createdAt}"><f:convertDateTime type="localDateTime" pattern="dd MMM yyyy"/></h:outputText></dd>
+                        <dt class="col-5 ss-faint fw-normal">Watchlist</dt><dd class="col-7">#{profileBean.profile.watchlistCount} stock(s)</dd>
+                        <dt class="col-5 ss-faint fw-normal">Status</dt><dd class="col-7 mb-0">#{profileBean.profile.active ? 'Active' : 'Deactivated'}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="ss-card">
+                    <h2 class="fs-6 mb-3">Display name</h2>
+                    <h:form id="nameForm">
+                        <div class="mb-3">
+                            <h:outputLabel for="name" value="Full name" styleClass="form-label"/>
+                            <h:inputText id="name" value="#{profileBean.name}" styleClass="form-control"
+                                         p:required="required" p:minlength="2" p:maxlength="100"/>
+                        </div>
+                        <h:commandButton value="Save name" action="#{profileBean.saveName}" styleClass="btn btn-primary"/>
+                    </h:form>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="ss-card">
+                    <h2 class="fs-6 mb-3">Change password</h2>
+                    <h:form id="passwordForm">
+                        <div class="mb-2">
+                            <h:outputLabel for="current" value="Current password" styleClass="form-label"/>
+                            <h:inputSecret id="current" value="#{profileBean.currentPassword}" styleClass="form-control"
+                                           p:autocomplete="current-password" p:required="required"/>
+                        </div>
+                        <div class="mb-2">
+                            <h:outputLabel for="newPassword" value="New password" styleClass="form-label"/>
+                            <h:inputSecret id="newPassword" value="#{profileBean.newPassword}" styleClass="form-control"
+                                           p:autocomplete="new-password" p:required="required" p:minlength="8"/>
+                        </div>
+                        <div class="mb-3">
+                            <h:outputLabel for="confirm" value="Confirm new password" styleClass="form-label"/>
+                            <h:inputSecret id="confirm" value="#{profileBean.confirmPassword}" styleClass="form-control"
+                                           p:autocomplete="new-password" p:required="required" p:minlength="8"/>
+                        </div>
+                        <h:commandButton value="Change password" action="#{profileBean.changePassword}" styleClass="btn btn-ghost"/>
+                    </h:form>
+                </div>
+            </div>
+        </div>
+    </ui:define>
+</ui:composition>
+</html>

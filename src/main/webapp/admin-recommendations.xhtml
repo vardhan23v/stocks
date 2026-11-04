@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="jakarta.faces.passthrough">
+
+<!-- Recommendation rules (weights, thresholds) and the generated recommendations. -->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">Recommendation rules &#183; Admin &#183; StockSense</ui:define>
+
+    <ui:define name="content">
+        <div class="ss-page-head">
+            <div>
+                <p class="ss-eyebrow">Administrator</p>
+                <h1>Recommendation rules</h1>
+            </div>
+            <h:form id="regenForm">
+                <h:commandButton value="Re-evaluate all stocks" action="#{adminRecommendationBean.regenerate}" styleClass="btn btn-ghost"/>
+            </h:form>
+        </div>
+
+        <h:form id="rulesForm">
+            <div class="ss-card ss-card-flush mb-4">
+                <div class="ss-card-head">
+                    <h2>Scoring rules</h2>
+                    <span class="small ss-faint">Signal (+1 / 0 / -1) x weight, summed</span>
+                </div>
+                <div class="table-responsive mt-2">
+                    <table class="table ss-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Rule</th>
+                                <th scope="col" style="width: 110px;">Weight</th>
+                                <th scope="col" style="width: 120px;">Low param</th>
+                                <th scope="col" style="width: 120px;">High param</th>
+                                <th scope="col">Enabled</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ui:repeat value="#{adminRecommendationBean.rules}" var="rule">
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">#{rule.name} <span class="mono ss-faint">#{rule.ruleKey}</span></div>
+                                        <div class="small ss-muted">#{rule.description}</div>
+                                    </td>
+                                    <td>
+                                        <h:inputText value="#{rule.weight}" styleClass="form-control form-control-sm num" p:aria-label="Weight of #{rule.name}"
+                                                     rendered="#{rule.ruleKey ne 'DECISION'}" p:inputmode="decimal"/>
+                                        <h:outputText value="-" rendered="#{rule.ruleKey eq 'DECISION'}" styleClass="ss-faint"/>
+                                    </td>
+                                    <td>
+                                        <h:inputText value="#{rule.paramLow}" styleClass="form-control form-control-sm num" p:aria-label="Low parameter of #{rule.name}"
+                                                     rendered="#{rule.ruleKey ne 'MACD'}" p:inputmode="decimal"/>
+                                    </td>
+                                    <td>
+                                        <h:inputText value="#{rule.paramHigh}" styleClass="form-control form-control-sm num" p:aria-label="High parameter of #{rule.name}"
+                                                     rendered="#{rule.ruleKey eq 'RSI' or rule.ruleKey eq 'DECISION'}" p:inputmode="decimal"/>
+                                    </td>
+                                    <td>
+                                        <div class="form-check form-switch">
+                                            <h:selectBooleanCheckbox value="#{rule.enabled}" styleClass="form-check-input" p:aria-label="#{rule.name} enabled"
+                                                                     rendered="#{rule.ruleKey ne 'DECISION'}"/>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </ui:repeat>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 pt-0 d-flex flex-wrap gap-2 align-items-center">
+                    <h:commandButton value="Save rules and re-evaluate" action="#{adminRecommendationBean.saveRules}" styleClass="btn btn-primary"/>
+                    <span class="small ss-faint">Weights 0-100. RSI: low &lt; high within 0-100. Decision: SELL threshold below 0, BUY threshold above 0.</span>
+                </div>
+            </div>
+        </h:form>
+
+        <div class="ss-card ss-card-flush">
+            <div class="ss-card-head"><h2>Generated recommendations</h2><span class="small ss-faint">Newest 40</span></div>
+            <h:form id="recsForm">
+                <div class="table-responsive mt-2 ss-scroll">
+                    <table class="table table-sm ss-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Stock</th>
+                                <th scope="col">Result</th>
+                                <th scope="col" class="num text-end">Score</th>
+                                <th scope="col" class="d-none d-md-table-cell">Data of</th>
+                                <th scope="col" class="d-none d-md-table-cell">Source</th>
+                                <th scope="col" class="d-none d-lg-table-cell">Generated</th>
+                                <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ui:repeat value="#{adminRecommendationBean.recent}" var="r">
+                                <tr>
+                                    <td><span class="ss-symbol">#{r.symbol}</span> <span class="small ss-faint">#{r.exchange}</span></td>
+                                    <td><ui:include src="/WEB-INF/components/rec-badge.xhtml"><ui:param name="rec" value="#{r}"/></ui:include></td>
+                                    <td class="num text-end">#{r.recommendationScore}</td>
+                                    <td class="d-none d-md-table-cell small"><h:outputText value="#{r.dataTimestamp}"><f:convertDateTime type="localDateTime" pattern="dd MMM yyyy"/></h:outputText></td>
+                                    <td class="d-none d-md-table-cell"><ui:include src="/WEB-INF/components/data-badge.xhtml"><ui:param name="source" value="#{r.dataSource}"/></ui:include></td>
+                                    <td class="d-none d-lg-table-cell small ss-muted"><h:outputText value="#{r.generatedAt}"><f:convertDateTime type="localDateTime" pattern="dd MMM, HH:mm:ss"/></h:outputText></td>
+                                    <td class="text-end">
+                                        <h:commandButton value="Delete" action="#{adminRecommendationBean.delete(r.id)}" styleClass="btn btn-sm btn-danger-soft"
+                                                         onclick="return confirm('Delete this recommendation? A new one is generated when the stock is next viewed.');"/>
+                                    </td>
+                                </tr>
+                            </ui:repeat>
+                        </tbody>
+                    </table>
+                </div>
+            </h:form>
+        </div>
+    </ui:define>
+</ui:composition>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+
+<!--
+  Stock explorer. The filter form is a plain GET form, so every search is a
+  bookmarkable URL; <f:viewParam> copies the parameters into StockBean.
+-->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">Stocks &#183; StockSense</ui:define>
+
+    <f:metadata>
+        <f:viewParam name="q" value="#{stockBean.q}"/>
+        <f:viewParam name="sector" value="#{stockBean.sector}"/>
+        <f:viewParam name="exchange" value="#{stockBean.exchange}"/>
+        <f:viewParam name="sort" value="#{stockBean.sort}"/>
+        <f:viewAction action="#{stockBean.load}"/>
+    </f:metadata>
+
+    <ui:define name="content">
+        <div class="ss-page-head">
+            <div>
+                <p class="ss-eyebrow">Explore</p>
+                <h1>Stocks</h1>
+            </div>
+            <ui:fragment rendered="#{stockBean.anySample}"><span class="ss-badge-sample">Prices are sample data</span></ui:fragment>
+        </div>
+
+        <form class="ss-card mb-3" method="get" action="#{request.contextPath}/stocks.xhtml" data-autosubmit="true" role="search">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label" for="q">Company or ticker</label>
+                    <input id="q" class="form-control" type="search" name="q" value="#{stockBean.q}" placeholder="e.g. INFY or Apple" maxlength="60"/>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="exchange">Exchange</label>
+                    <select id="exchange" name="exchange" class="form-select" data-value="#{stockBean.exchange}">
+                        <option value="">All</option>
+                        <ui:repeat value="#{stockBean.exchanges}" var="e"><option value="#{e}">#{e}</option></ui:repeat>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="sector">Sector</label>
+                    <select id="sector" name="sector" class="form-select" data-value="#{stockBean.sector}">
+                        <option value="">All sectors</option>
+                        <ui:repeat value="#{stockBean.sectors}" var="s"><option value="#{s}">#{s}</option></ui:repeat>
+                    </select>
+                </div>
+                <div class="col-8 col-md-2">
+                    <label class="form-label" for="sort">Sort by</label>
+                    <select id="sort" name="sort" class="form-select" data-value="#{stockBean.sort}">
+                        <option value="symbol">Ticker A-Z</option>
+                        <option value="name">Company A-Z</option>
+                        <option value="change_desc">Biggest gain</option>
+                        <option value="change_asc">Biggest fall</option>
+                        <option value="price">Highest price</option>
+                    </select>
+                </div>
+                <div class="col-4 col-md-1 d-grid">
+                    <button class="btn btn-primary" type="submit">Go</button>
+                </div>
+            </div>
+            <ui:fragment rendered="#{stockBean.filtered}">
+                <div class="small ss-muted mt-2">
+                    #{stockBean.stocks.size()} result(s). <h:link outcome="/stocks.xhtml" value="Clear filters"/>
+                </div>
+            </ui:fragment>
+        </form>
+
+        <div class="ss-card ss-card-flush">
+            <ui:fragment rendered="#{empty stockBean.stocks}">
+                <div class="ss-empty">
+                    <div class="ss-empty-icon"><i class="bi bi-search" aria-hidden="true"></i></div>
+                    <p class="mb-0">No stocks match your search.</p>
+                </div>
+            </ui:fragment>
+            <h:form id="stocksForm" rendered="#{not empty stockBean.stocks}">
+                <div class="table-responsive">
+                    <table class="table table-hover ss-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Stock</th>
+                                <th scope="col" class="d-none d-md-table-cell">Exchange</th>
+                                <th scope="col" class="d-none d-lg-table-cell">Sector</th>
+                                <th scope="col" class="num text-end">Latest close</th>
+                                <th scope="col" class="text-end">Change</th>
+                                <th scope="col" class="d-none d-lg-table-cell">As of</th>
+                                <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ui:repeat value="#{stockBean.stocks}" var="s">
+                                <tr>
+                                    <td>
+                                        <h:link outcome="/stock-details.xhtml" styleClass="ss-symbol">
+                                            <f:param name="stockId" value="#{s.id}"/>#{s.symbol}
+                                        </h:link>
+                                        <div class="ss-company">#{s.companyName}</div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell"><span class="ss-badge-source">#{s.exchange}</span></td>
+                                    <td class="d-none d-lg-table-cell ss-muted small">#{s.sector}<div class="ss-faint">#{s.industry}</div></td>
+                                    <td class="num text-end fw-semibold">
+                                        <ui:fragment rendered="#{s.hasPrice}">
+                                            #{s.currencySymbol}<h:outputText value="#{s.latestPrice}"><f:convertNumber pattern="#,##0.00"/></h:outputText>
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{not s.hasPrice}"><span class="ss-faint">No data</span></ui:fragment>
+                                    </td>
+                                    <td class="text-end">
+                                        <ui:include src="/WEB-INF/components/price-change.xhtml">
+                                            <ui:param name="stock" value="#{s}"/>
+                                            <ui:param name="compact" value="false"/>
+                                        </ui:include>
+                                    </td>
+                                    <td class="d-none d-lg-table-cell small">
+                                        <h:outputText value="#{s.lastUpdated}" rendered="#{not empty s.lastUpdated}">
+                                            <f:convertDateTime type="localDateTime" pattern="dd MMM yyyy"/>
+                                        </h:outputText>
+                                        <div><ui:include src="/WEB-INF/components/data-badge.xhtml"><ui:param name="source" value="#{s.dataSource}"/></ui:include></div>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <h:commandButton value="Watch" action="#{stockBean.addToWatchlist(s.id)}"
+                                                         styleClass="btn btn-sm btn-ghost" rendered="#{not stockBean.isWatched(s.id)}"/>
+                                        <ui:fragment rendered="#{stockBean.isWatched(s.id)}">
+                                            <span class="small up"><i class="bi bi-star-fill" aria-hidden="true"></i> Watching</span>
+                                        </ui:fragment>
+                                    </td>
+                                </tr>
+                            </ui:repeat>
+                        </tbody>
+                    </table>
+                </div>
+            </h:form>
+        </div>
+        <p class="small ss-faint mt-2">Change compares the two most recent stored closes. Prices are end-of-day values with their source - never real-time quotes.</p>
+    </ui:define>
+</ui:composition>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="jakarta.faces.passthrough">
+
+<!--
+  Registration form. The HTML attributes (required, minlength) only help the
+  user; AuthService.register() validates everything again on the server.
+-->
+<ui:composition template="/WEB-INF/templates/layout.xhtml">
+    <ui:define name="title">Create account &#183; StockSense</ui:define>
+
+    <ui:define name="content">
+        <div class="ss-auth">
+            <div class="ss-card">
+                <p class="ss-eyebrow">Free account</p>
+                <h1 class="mb-1">Create your account</h1>
+                <p class="ss-muted small mb-4">Track stocks, keep a private watchlist and read explainable recommendations.</p>
+
+                <h:messages globalOnly="true" layout="list" styleClass="ss-messages"
+                            infoClass="ss-alert ss-alert-info" errorClass="ss-alert ss-alert-error"
+                            warnClass="ss-alert ss-alert-warn"/>
+
+                <h:form id="registerForm">
+                    <div class="mb-3">
+                        <h:outputLabel for="name" value="Full name" styleClass="form-label"/>
+                        <h:inputText id="name" value="#{registerBean.name}" styleClass="form-control"
+                                     p:autocomplete="name" p:required="required" p:minlength="2" p:maxlength="100"/>
+                    </div>
+                    <div class="mb-3">
+                        <h:outputLabel for="email" value="Email" styleClass="form-label"/>
+                        <h:inputText id="email" value="#{registerBean.email}" styleClass="form-control"
+                                     p:type="email" p:autocomplete="email" p:required="required" p:maxlength="150"/>
+                    </div>
+                    <div class="mb-3">
+                        <h:outputLabel for="password" value="Password" styleClass="form-label"/>
+                        <h:inputSecret id="password" value="#{registerBean.password}" styleClass="form-control"
+                                       p:autocomplete="new-password" p:required="required" p:minlength="8"
+                                       p:aria-describedby="passwordHelp"/>
+                        <div id="passwordHelp" class="form-text ss-faint">At least 8 characters, with a letter and a digit.</div>
+                    </div>
+                    <div class="mb-4">
+                        <h:outputLabel for="confirm" value="Confirm password" styleClass="form-label"/>
+                        <h:inputSecret id="confirm" value="#{registerBean.confirmPassword}" styleClass="form-control"
+                                       p:autocomplete="new-password" p:required="required" p:minlength="8"/>
+                    </div>
+                    <h:commandButton value="Create account" action="#{registerBean.register}" styleClass="btn btn-primary w-100"/>
+                </h:form>
+
+                <p class="mt-3 mb-0 small ss-muted">
+                    Already registered? <h:link outcome="/login.xhtml" value="Log in"/>
+                </p>
+            </div>
+        </div>
+    </ui:define>
+</ui:composition>
+</html>

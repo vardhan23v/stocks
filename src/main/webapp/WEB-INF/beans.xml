@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CDI 4.0 deployment descriptor.
+
+  Jakarta Faces 4.0 removed @ManagedBean, so every backing bean in this
+  application is a CDI bean (@Named + a jakarta.enterprise.context scope).
+  "annotated" means only classes with a bean-defining annotation such as
+  @Named become CDI beans - the DAO, service and model classes stay ordinary
+  Java classes.
+-->
+<beans xmlns="https://jakarta.ee/xml/ns/jakartaee"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+                           https://jakarta.ee/xml/ns/jakartaee/beans_4_0.xsd"
+       version="4.0"
+       bean-discovery-mode="annotated"/>
