@@ -350,6 +350,45 @@ The WAR ships Mojarra, Weld and Connector/J in `WEB-INF/lib`; nothing needs
 to be added to Tomcat. Tomcat 10.1 is required (Jakarta EE 10 namespace);
 Tomcat 9 will not work.
 
+### Deploy on Railway (Docker)
+
+The repository contains a `Dockerfile` (Maven build + tests, then Tomcat 10.1 /
+Java 21, app served at `/`) and `docker/start.sh` (moves Tomcat to Railway's
+`$PORT`).
+
+```bash
+railway login
+railway init --name stock-recommendation
+railway add --database mysql
+railway add --service web
+```
+
+Set the web service variables. They reference the MySQL service, so no
+password is copied anywhere:
+
+```bash
+railway variable set --service web 'DB_URL=jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/stock_recommendation_db?sslMode=DISABLED&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true' 'DB_USER=${{MySQL.MYSQLUSER}}' 'DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}' 'DB_INIT=true' 'MARKET_PROVIDER=DEMO'
+```
+
+Deploy and get a public URL:
+
+```bash
+railway up --service web --detach
+```
+
+```bash
+railway domain --service web
+```
+
+Railway's MySQL is only reachable on its private network, so `DB_INIT=true`
+makes the application run `schema.sql` and `sample-data.sql` itself on first
+start (`AppLifecycleListener`). It only does so when the `users` table does not
+exist yet, so redeploys never touch existing data. To use real prices, also set
+`MARKET_PROVIDER=ALPHA_VANTAGE` and `ALPHA_VANTAGE_API_KEY`.
+
+To rename the generated `*.up.railway.app` address: Railway dashboard → the
+`web` service → **Settings → Networking** → edit the domain.
+
 ---
 
 ## Eclipse / IntelliJ setup
