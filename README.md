@@ -422,5 +422,6 @@ without CSRF → 403). The end-to-end checklist and results are in
 | "This form has expired" (403) | The CSRF token expired with the session; reload the page and submit again. |
 | Charts are empty boxes | Chart.js could not load from jsdelivr (offline). The tables still show every value. |
 | "Demo mode" although a key is set | `MARKET_PROVIDER` must also be `ALPHA_VANTAGE`. Restart after changing. |
+| A demo login stopped working on a hosted copy | Set `RESET_DEMO_PASSWORDS=admin@stocksense.test,priya@stocksense.test` (any of the four demo emails), deploy once, then remove the variable. Listed demo accounts get their README password back, and are re-added if they were deleted. Other emails are ignored. |
 | Sync says `RATE_LIMITED` | Free tier used up (25/day or 5/min). Cached data stays. |
 | `release version 21 not supported` | Maven is using an older JDK: set `JAVA_HOME` to JDK 21. |
