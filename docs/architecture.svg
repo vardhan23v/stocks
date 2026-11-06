@@ -17,7 +17,7 @@
     </style>
   </defs>
   <rect width="960" height="620" fill="#f6f7fa"/>
-  <text x="32" y="38" font-size="20" font-weight="700" fill="#161a22">StockSense &#8212; layered architecture (same pattern as NitteSync)</text>
+  <text x="32" y="38" font-size="20" font-weight="700" fill="#161a22">StockSense &#8212; JSF layered architecture (same pattern as NitteSync)</text>
   <text x="32" y="60" class="note">XHTML &#8594; JSF backing beans &#8594; Service &#8594; DAO &#8594; JDBC &#8594; MySQL, deployed as one WAR on Apache Tomcat 10.1</text>
 
   <!-- Browser -->
@@ -28,9 +28,9 @@
 
   <!-- Faces + filter -->
   <rect class="box" x="32" y="180" width="600" height="70" rx="10"/>
-  <text class="layer" x="48" y="200">WEB TIER &#183; TOMCAT 10.1</text>
-  <text class="title" x="48" y="222">AuthFilter (*.xhtml) &#8594; FacesServlet (Mojarra 4.0.27)</text>
-  <text class="item" x="48" y="240">Login check + role check (/admin-* = ADMIN) before JSF runs &#183; layout.xhtml template</text>
+  <text class="layer" x="48" y="200">WEB TIER &#183; JSF ON TOMCAT 10.1</text>
+  <text class="title" x="48" y="222">JSF (Jakarta Faces 4.0): AuthFilter &#8594; FacesServlet</text>
+  <text class="item" x="48" y="240">Mojarra 4.0.27 &#183; Facelets XHTML views &#183; login + role check before JSF runs</text>
 
   <!-- Beans -->
   <rect class="box" x="32" y="276" width="600" height="70" rx="10"/>

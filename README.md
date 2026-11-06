@@ -5,10 +5,13 @@ technical indicators, getting **explainable rule-based BUY / HOLD / SELL
 recommendations**, and keeping a private watchlist. Administrators manage
 users, stock records, the scoring rules and the market data integration.
 
-Built with the same stack and layered architecture as
-[NitteSync](https://github.com/vardhan23v/NitteSync): Jakarta Faces 4.0 +
-CDI + plain JDBC + MySQL on Tomcat 10.1. It is a separate, independently
-deployable application; NitteSync itself is not modified.
+**Built with JSF (Jakarta Faces 4.0)** + CDI + plain JDBC + MySQL on Tomcat
+10.1 — the same stack and layered architecture as
+[NitteSync](https://github.com/vardhan23v/NitteSync). It is a separate,
+independently deployable application; NitteSync itself is not modified.
+
+**Live demo:** <https://web-production-4861b6.up.railway.app> (sample data;
+demo logins below).
 
 > **Educational and informational purposes only.** Recommendations come from
 > fixed technical rules, not personalised financial advice, and they do not
@@ -23,18 +26,19 @@ deployable application; NitteSync itself is not modified.
 
 1. [Features](#features)
 2. [Technology stack](#technology-stack)
-3. [Architecture](#architecture)
-4. [Project structure](#project-structure)
-5. [Database setup](#database-setup)
-6. [Market data provider and API key](#market-data-provider-and-api-key)
-7. [Demo mode](#demo-mode)
-8. [Build](#build)
-9. [Deploy on Tomcat 10.1](#deploy-on-tomcat-101)
-10. [Eclipse / IntelliJ setup](#eclipse--intellij-setup)
-11. [Demo credentials](#demo-credentials)
-12. [Recommendation engine](#recommendation-engine)
-13. [Testing](#testing)
-14. [Troubleshooting](#troubleshooting)
+3. [Where JSF is used](#where-jsf-is-used)
+4. [Architecture](#architecture)
+5. [Project structure](#project-structure)
+6. [Database setup](#database-setup)
+7. [Market data provider and API key](#market-data-provider-and-api-key)
+8. [Demo mode](#demo-mode)
+9. [Build](#build)
+10. [Deploy on Tomcat 10.1](#deploy-on-tomcat-101)
+11. [Eclipse / IntelliJ setup](#eclipse--intellij-setup)
+12. [Demo credentials](#demo-credentials)
+13. [Recommendation engine](#recommendation-engine)
+14. [Testing](#testing)
+15. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -91,7 +95,7 @@ Every admin action is authorised twice on the server: by `AuthFilter`
 | Layer | Technology |
 |---|---|
 | Language | Java 21 |
-| Web framework | Jakarta Faces 4.0 — Mojarra 4.0.27 |
+| Web framework | **JSF** — Jakarta Faces 4.0 (Mojarra 4.0.27), Facelets XHTML views |
 | Dependency injection | CDI 4.0.1 — Weld Servlet 5.1.7.Final |
 | Persistence | Plain JDBC (`PreparedStatement` everywhere), MySQL Connector/J 8.4.0 |
 | Database | MySQL 8 or newer (verified on MySQL 26.10) |
@@ -103,6 +107,30 @@ Every admin action is authorised twice on the server: by `AuthFilter`
 | Tests | JUnit 5 |
 
 No Spring, Hibernate/JPA, React, Angular or Node.js.
+
+---
+
+## Where JSF is used
+
+JSF (JavaServer Faces, now called **Jakarta Faces**) is the web framework of
+the whole application. Every page the browser sees is rendered by JSF.
+
+| JSF part | Where in this project |
+|---|---|
+| Implementation | Mojarra 4.0.27 (`org.glassfish:jakarta.faces` in `pom.xml`), API `jakarta.faces-api` 4.0.1 |
+| `FacesServlet` | `WEB-INF/web.xml` maps every `*.xhtml` request to it |
+| Facelets views | All 14 pages (`index.xhtml` … `admin-market-data.xhtml`) |
+| Page template | `WEB-INF/templates/layout.xhtml` with `ui:insert`; pages use `ui:composition` / `ui:define` |
+| Reusable fragments | `WEB-INF/components/*.xhtml` included with `ui:include` + `ui:param` |
+| Backing beans | `bean/*Bean.java`: `@Named` CDI beans, `@RequestScoped` or `@ViewScoped` (JSF 4.0 removed `@ManagedBean`) |
+| Forms and actions | `h:form`, `h:inputText`, `h:inputSecret`, `h:selectOneMenu`, `h:selectBooleanCheckbox`, `h:commandButton`, `h:commandLink`, action methods with parameters, e.g. `#{watchlistBean.remove(w.stockId)}` |
+| Page parameters | `f:viewParam` + `f:viewAction` (e.g. `stock-details.xhtml?stockId=3&range=1Y`) |
+| Converters | `f:convertNumber` (prices, %), `f:convertDateTime type="localDateTime"` |
+| Iteration | `ui:repeat` for tables, cards and the rules editor (inputs inside `ui:repeat`) |
+| Messages | `FacesMessage` via `FacesUtil`, shown by `h:messages`; flash scope keeps them across redirects |
+| Navigation | `faces-config.xml` rules (`loginSuccess`, `adminLoginSuccess`, `logout`) plus implicit `?faces-redirect=true` navigation |
+| Links | `h:link` with `f:param` and `includeViewParams` |
+| Expression Language | `#{...}` in every page, including EL list literals and method calls |
 
 ---
 

@@ -9,7 +9,7 @@
   <version>1.0.0</version>
   <packaging>war</packaging>
   <name>StockSense</name>
-  <description>Stocks Recommendations System (Jakarta Faces 4.0 + CDI + JDBC + MySQL)</description>
+  <description>Stocks Recommendations System built with JSF (Jakarta Faces 4.0) + CDI + JDBC + MySQL</description>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
