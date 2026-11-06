@@ -12,8 +12,9 @@ import java.util.Locale;
 import org.springframework.stereotype.Component;
 
 /**
- * Number and date formatting for the Thymeleaf templates, used as
- * ${@fmt.money(stock.latestPrice)}. Null values print as an em dash.
+ * Number and date formatting for the JSP views, used as
+ * ${fmt.money(stock.latestPrice)} (WebConfig exposes this bean to them).
+ * Null values print as an em dash. Results contain no HTML.
  */
 @Component("fmt")
 public class Formats {
@@ -45,7 +46,8 @@ public class Formats {
         return value == null ? DASH : value.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH));
     }
 
-    public String date(LocalDate value) {
+    /** A calendar day with weekday. (Named apart from date() so JSP EL never has to pick an overload for null.) */
+    public String day(LocalDate value) {
         return value == null ? DASH : value.format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.ENGLISH));
     }
 

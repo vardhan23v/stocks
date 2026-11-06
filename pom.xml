@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Spring Boot manages the versions of every Spring, Tomcat, Jackson, Thymeleaf and JUnit artifact below. -->
+  <!-- Spring Boot manages the versions of every Spring, Tomcat, Jackson, JSTL and JUnit artifact below. -->
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
@@ -15,9 +15,9 @@
   <groupId>com.stockrecommendation</groupId>
   <artifactId>stock-recommendation</artifactId>
   <version>2.0.0</version>
-  <packaging>jar</packaging>
+  <packaging>war</packaging>
   <name>StockSense</name>
-  <description>Stocks Recommendations System built with Spring Boot (Spring MVC, Thymeleaf, Spring Security, JdbcTemplate) + MySQL</description>
+  <description>Stocks Recommendations System built with Spring Boot (Spring MVC, JSP + JSTL, Spring Security, JdbcTemplate) + MySQL</description>
 
   <properties>
     <java.version>21</java.version>
@@ -31,14 +31,32 @@
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
-    <!-- Server-side HTML templates -->
+    <!-- Views are JSP pages (src/main/webapp/WEB-INF/jsp), compiled by Tomcat's Jasper.
+         "provided": inside the executable WAR they still run (lib-provided), and on an
+         external Tomcat the server's own copies are used. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-thymeleaf</artifactId>
+      <artifactId>spring-boot-starter-tomcat</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.thymeleaf.extras</groupId>
-      <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-jasper</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <!-- JSTL (c:, fmt:, fn: tags) -->
+    <dependency>
+      <groupId>jakarta.servlet.jsp.jstl</groupId>
+      <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.web</groupId>
+      <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+    </dependency>
+    <!-- sec:authorize / sec:csrfInput in JSP -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-taglibs</artifactId>
     </dependency>
 
     <!-- Login, roles, CSRF protection -->

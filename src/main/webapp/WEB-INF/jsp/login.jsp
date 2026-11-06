@@ -1,17 +1,15 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en" data-bs-theme="dark">
-<head th:replace="~{layout :: head('Log in')}"></head>
-<body>
-<th:block th:replace="~{layout :: top}"></th:block>
-<main class="ss-main" id="main"><div class="container-xl">
+<%-- Login form. Spring Security processes the POST to /login (see SecurityConfig). --%>
+<%@ page pageEncoding="UTF-8" %>
+<%@ include file="/WEB-INF/jsp/common/taglibs.jspf" %>
+<ss:page title="Log in">
     <div class="ss-auth">
         <div class="ss-card">
             <p class="ss-eyebrow">Welcome back</p>
             <h1 class="mb-4">Log in to StockSense</h1>
-            <ul th:replace="~{layout :: messages}"></ul>
+            <ss:messages/>
 
-            <!-- Spring Security processes this POST (SecurityConfig); th:action adds the CSRF token. -->
-            <form th:action="@{/login}" method="post">
+            <form action="${ctx}/login" method="post">
+                <sec:csrfInput/>
                 <div class="mb-3">
                     <label class="form-label" for="email">Email</label>
                     <input class="form-control" id="email" name="email" type="email" autocomplete="username" required autofocus/>
@@ -23,7 +21,7 @@
                 <button type="submit" class="btn btn-primary w-100">Log in</button>
             </form>
 
-            <p class="mt-3 mb-0 small ss-muted">New here? <a th:href="@{/register}">Create an account</a></p>
+            <p class="mt-3 mb-0 small ss-muted">New here? <a href="${ctx}/register">Create an account</a></p>
         </div>
 
         <div class="ss-demo-box mt-3">
@@ -32,8 +30,4 @@
             User: <span class="mono">priya@stocksense.test</span> / <span class="mono">User@1234</span>
         </div>
     </div>
-</div></main>
-<footer th:replace="~{layout :: footer}"></footer>
-<th:block th:replace="~{layout :: scripts}"></th:block>
-</body>
-</html>
+</ss:page>

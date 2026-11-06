@@ -1,10 +1,8 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en" data-bs-theme="dark">
-<head th:replace="~{layout :: head('Explainable stock analysis')}"></head>
-<body>
-<th:block th:replace="~{layout :: top}"></th:block>
-<main class="ss-main" id="main"><div class="container-xl">
-    <ul th:replace="~{layout :: messages}"></ul>
+<%-- Public start page ("/"). --%>
+<%@ page pageEncoding="UTF-8" %>
+<%@ include file="/WEB-INF/jsp/common/taglibs.jspf" %>
+<ss:page title="Explainable stock analysis">
+    <ss:messages/>
 
     <section class="ss-hero">
         <div class="row g-4 align-items-center">
@@ -17,12 +15,13 @@
                     every reason behind it.
                 </p>
                 <div class="d-flex flex-wrap gap-2 mt-4">
-                    <th:block sec:authorize="isAnonymous()">
-                        <a class="btn btn-primary btn-lg" th:href="@{/register}">Create a free account</a>
-                        <a class="btn btn-ghost btn-lg" th:href="@{/login}">Log in</a>
-                    </th:block>
-                    <a sec:authorize="isAuthenticated()" class="btn btn-primary btn-lg"
-                       th:href="${currentUser != null and currentUser.admin} ? @{/admin} : @{/dashboard}">Go to your dashboard</a>
+                    <sec:authorize access="isAnonymous()">
+                        <a class="btn btn-primary btn-lg" href="${ctx}/register">Create a free account</a>
+                        <a class="btn btn-ghost btn-lg" href="${ctx}/login">Log in</a>
+                    </sec:authorize>
+                    <sec:authorize access="isAuthenticated()">
+                        <a class="btn btn-primary btn-lg" href="${ctx}${currentUser.admin ? '/admin' : '/dashboard'}">Go to your dashboard</a>
+                    </sec:authorize>
                 </div>
                 <p class="ss-disclaimer mt-4 mb-0">
                     For education and information only. Recommendations are produced by fixed, documented
@@ -72,8 +71,4 @@
             <p class="ss-muted small mb-0">Keep a private watchlist and see at a glance which of your stocks moved, and by how much.</p>
         </div></div>
     </section>
-</div></main>
-<footer th:replace="~{layout :: footer}"></footer>
-<th:block th:replace="~{layout :: scripts}"></th:block>
-</body>
-</html>
+</ss:page>

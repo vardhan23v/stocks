@@ -13,6 +13,7 @@ import com.stockrecommendation.security.AppUser;
 import com.stockrecommendation.security.StockSensePasswordEncoder;
 import com.stockrecommendation.service.AuthService;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
@@ -23,7 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
  *   any user    everything else
  *
  * Form login with the email as user name, CSRF protection on every POST
- * (Thymeleaf adds the token to th:action forms), session id changed at login.
+ * (every JSP form carries it via <sec:csrfInput/> or Spring's <form:form>), session id changed at login.
  * Services check the admin role a second time before changing data.
  */
 @Configuration
@@ -39,6 +40,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthService authService) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
+                // The controller already passed the checks below; let it forward to its
+                // /WEB-INF/jsp view, and let error pages render.
+                .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
                 .requestMatchers("/", "/login", "/register", "/css/**", "/js/**", "/img/**", "/error", "/favicon.ico").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated())

@@ -1,25 +1,23 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en" data-bs-theme="dark">
-<head th:replace="~{layout :: head('Create account')}"></head>
-<body>
-<th:block th:replace="~{layout :: top}"></th:block>
-<main class="ss-main" id="main"><div class="container-xl">
+<%-- Registration. required/minlength only help the user; AuthService.register() validates again. --%>
+<%@ page pageEncoding="UTF-8" %>
+<%@ include file="/WEB-INF/jsp/common/taglibs.jspf" %>
+<ss:page title="Create account">
     <div class="ss-auth">
         <div class="ss-card">
             <p class="ss-eyebrow">Free account</p>
             <h1 class="mb-1">Create your account</h1>
             <p class="ss-muted small mb-4">Track stocks, keep a private watchlist and read explainable recommendations.</p>
-            <ul th:replace="~{layout :: messages}"></ul>
+            <ss:messages/>
 
-            <!-- required/minlength only help the user; AuthService.register() validates again. -->
-            <form th:action="@{/register}" method="post">
+            <form action="${ctx}/register" method="post">
+                <sec:csrfInput/>
                 <div class="mb-3">
                     <label class="form-label" for="name">Full name</label>
-                    <input class="form-control" id="name" name="name" th:value="${name}" autocomplete="name" required minlength="2" maxlength="100"/>
+                    <input class="form-control" id="name" name="name" value="${fn:escapeXml(name)}" autocomplete="name" required minlength="2" maxlength="100"/>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="email">Email</label>
-                    <input class="form-control" id="email" name="email" type="email" th:value="${email}" autocomplete="email" required maxlength="150"/>
+                    <input class="form-control" id="email" name="email" type="email" value="${fn:escapeXml(email)}" autocomplete="email" required maxlength="150"/>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="password">Password</label>
@@ -34,11 +32,7 @@
                 <button type="submit" class="btn btn-primary w-100">Create account</button>
             </form>
 
-            <p class="mt-3 mb-0 small ss-muted">Already registered? <a th:href="@{/login}">Log in</a></p>
+            <p class="mt-3 mb-0 small ss-muted">Already registered? <a href="${ctx}/login">Log in</a></p>
         </div>
     </div>
-</div></main>
-<footer th:replace="~{layout :: footer}"></footer>
-<th:block th:replace="~{layout :: scripts}"></th:block>
-</body>
-</html>
+</ss:page>

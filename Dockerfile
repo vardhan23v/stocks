@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # StockSense container image (used by Railway, works with any Docker host).
 #
-# Stage 1 builds the Spring Boot jar with Maven and runs the tests.
+# Stage 1 builds the Spring Boot WAR (JSP views included) with Maven and runs the tests.
 # Stage 2 runs it on a Java 21 JRE. The embedded Tomcat listens on $PORT
 # (server.port=${PORT:8080} in application.properties).
 #
@@ -18,6 +18,6 @@ RUN mvn -q -B package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=build /app/target/stock-recommendation.jar app.jar
+COPY --from=build /app/target/stock-recommendation.war app.war
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.war"]

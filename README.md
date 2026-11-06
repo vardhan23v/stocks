@@ -5,8 +5,8 @@ technical indicators, getting **explainable rule-based BUY / HOLD / SELL
 recommendations**, and keeping a private watchlist. Administrators manage
 users, stock records, the scoring rules and the market data integration.
 
-**Built with Spring Boot 3** — Spring MVC, Thymeleaf, Spring Security and
-JdbcTemplate — on MySQL.
+**Built with Spring Boot 3** — Spring MVC with **JSP + JSTL views**, Spring
+Security and JdbcTemplate — on MySQL.
 
 **Live demo:** <https://web-production-4861b6.up.railway.app> (sample data;
 demo logins below).
@@ -18,7 +18,8 @@ demo logins below).
 
 > **History:** versions up to the git tag `jsf-version` were built with JSF
 > (Jakarta Faces 4.0) + CDI + JDBC on Tomcat 10.1. The application was then
-> rewritten on Spring Boot with the same features, database and design.
+> rewritten on Spring Boot with the same features, database and design, first
+> with Thymeleaf views and then with the JSP views it uses now.
 
 ![Architecture](docs/architecture.svg)
 
@@ -90,13 +91,13 @@ demo logins below).
 | Language | Java 21 |
 | Framework | **Spring Boot 3.3.5** |
 | Web | **Spring MVC** controllers, embedded Tomcat 10.1 |
-| Views | **Thymeleaf** templates + `thymeleaf-extras-springsecurity6`; HTML5, CSS3, vanilla JS, Bootstrap 5.3.3, Chart.js 4.4.1 |
+| Views | **JSP** pages + **JSTL** (`c:`, `fn:`), JSP tag files for the layout and widgets, Spring Security taglib (`sec:authorize`, `sec:csrfInput`), Spring form taglib (`form:form`); compiled by Tomcat Jasper. HTML5, CSS3, vanilla JS, Bootstrap 5.3.3, Chart.js 4.4.1 |
 | Security | **Spring Security** — form login, roles, CSRF protection, session fixation protection |
 | Data access | **Spring JDBC** (`JdbcTemplate`, `RowMapper`, `@Transactional`), HikariCP pool, MySQL Connector/J 8.4.0 |
 | Database | MySQL 8 or newer (verified on MySQL 26.10) |
 | JSON | Jackson (API responses, chart data) |
 | HTTP client | `java.net.http.HttpClient` |
-| Build | Maven 3.8+, executable jar (`spring-boot-maven-plugin`) |
+| Build | Maven 3.8+, **WAR** (`spring-boot-maven-plugin`): runs with `java -jar` or deploys to an external Tomcat 10.1 |
 | Tests | JUnit 5, Spring Boot Test, MockMvc, Spring Security Test |
 
 No JPA/Hibernate: the SQL is written by hand and run with `JdbcTemplate`.
@@ -112,7 +113,7 @@ No JPA/Hibernate: the SQL is written by hand and run with `JdbcTemplate`.
 | Dependency injection | `@Service`, `@Repository`, `@Controller`, `@Component`; constructor injection everywhere |
 | Spring MVC | `web/*Controller`, `web/admin/*Controller`: `@GetMapping`, `@PostMapping`, `@PathVariable`, `@RequestParam`, `@ModelAttribute`, `RedirectAttributes` flash messages (post-redirect-get) |
 | `@ControllerAdvice` | `web/GlobalModelAdvice`: current user, current path, provider status for every page; friendly page for `DataAccessException` |
-| Thymeleaf | `templates/layout.html` fragments, `templates/fragments/widgets.html`, 14 pages, `sec:authorize` for role-based menus |
+| JSP views | `config/WebConfig` (`InternalResourceViewResolver` + `JstlView`, exposes the `fmt` formatter bean), `src/main/webapp/WEB-INF/jsp/**` (14 pages), `WEB-INF/tags/*.tag` (layout and widgets), `form:form` data binding on the admin stock and rules forms |
 | Spring Security | `config/SecurityConfig` (URL rules, form login, logout, CSRF, access-denied handling), `security/AppUserDetailsService`, `security/StockSensePasswordEncoder`, `@AuthenticationPrincipal AppUser` |
 | Spring JDBC | `dao/*DAO` on `JdbcTemplate` with `RowMapper`s, `GeneratedKeyHolder`, `batchUpdate`, `DuplicateKeyException` |
 | Transactions | `@Transactional` on the price upsert and the rules update |
@@ -126,7 +127,7 @@ No JPA/Hibernate: the SQL is written by hand and run with `JdbcTemplate`.
 
 ```
 Browser ─► Spring Security filter chain (login, roles, CSRF)
-        ─► Spring MVC @Controller ─► Thymeleaf template
+        ─► Spring MVC @Controller ─► JSP view (/WEB-INF/jsp/*.jsp)
         ─► @Service (business rules, 2nd authorisation check)
         ─► @Repository DAO (JdbcTemplate) ─► MySQL
 
@@ -154,7 +155,7 @@ Database diagram: [docs/er-diagram.svg](docs/er-diagram.svg)
 
 ```
 pom.xml                         Spring Boot parent + starters
-Dockerfile                      Maven build -> Java 21 JRE, java -jar
+Dockerfile                      Maven build -> Java 21 JRE, java -jar app.war
 README.md
 docs/
   architecture.svg  er-diagram.svg  recommendation-methodology.md  TESTING.md
@@ -162,7 +163,7 @@ tools/
   SampleDataGenerator.java      dev tool that writes sample-data.sql
 src/main/java/com/stockrecommendation/
   StockSenseApplication.java
-  config/    SecurityConfig, MarketProperties, AsyncConfig
+  config/    SecurityConfig, WebConfig, MarketProperties, AsyncConfig
   security/  AppUser, AppUserDetailsService, StockSensePasswordEncoder
   init/      DatabaseInitializer
   web/       HomeController, AuthController, DashboardController, StockController,
@@ -182,10 +183,14 @@ src/main/java/com/stockrecommendation/
 src/main/resources/
   application.properties
   schema.sql  sample-data.sql
-  templates/  layout.html, fragments/widgets.html, index, login, register,
-              dashboard, stocks, stock-details, recommendations, watchlist,
-              profile, error, db-error, admin/{dashboard,users,stocks,rules,market-data}
   static/     css/style.css  js/charts.js  img/favicon.svg
+src/main/webapp/WEB-INF/
+  jsp/        index, login, register, dashboard, stocks, stock-details,
+              recommendations, watchlist, profile, error, db-error (.jsp),
+              admin/{dashboard,users,stocks,rules,market-data}.jsp,
+              common/taglibs.jspf (taglib declarations, included by every page)
+  tags/       page.tag (layout: head, menu, footer), messages, priceChange,
+              dataBadge, recBadge, scoreBar, recCard (.tag)
 src/test/java/com/stockrecommendation/
   service/   StockAnalysisServiceTest, RecommendationServiceTest
   security/  StockSensePasswordEncoderTest
@@ -297,10 +302,10 @@ Requires JDK 21 and Maven 3.8+ (macOS/Homebrew: `export JAVA_HOME=$(brew --prefi
 mvn clean package
 ```
 
-runs the 19 tests and builds `target/stock-recommendation.jar`. Then either:
+runs the 20 tests and builds `target/stock-recommendation.war`. Then either:
 
 ```bash
-java -jar target/stock-recommendation.jar
+java -jar target/stock-recommendation.war
 ```
 
 ```bash
@@ -309,11 +314,15 @@ mvn spring-boot:run
 
 and open <http://localhost:8080/>. Use `PORT=8090` to change the port.
 
+The same WAR also deploys to a standalone **Apache Tomcat 10.1**: copy it to
+`webapps/` and open <http://localhost:8080/stock-recommendation/> (the database
+settings then come from environment variables of the Tomcat process).
+
 ---
 
 ## Deploy on Railway
 
-The `Dockerfile` builds the jar (running the tests) and runs it on a Java 21
+The `Dockerfile` builds the WAR (running the tests) and runs it on a Java 21
 JRE; Spring Boot listens on Railway's `$PORT`.
 
 ```bash
@@ -357,6 +366,9 @@ Railway dashboard → **web** → **Settings → Networking**.
 
 **IntelliJ IDEA**: *File > Open* → `pom.xml` → *Open as Project*, SDK 21. Run
 `StockSenseApplication` (Community edition works — no external Tomcat needed).
+Set the run configuration's working directory to the project folder (so the JSPs
+in `src/main/webapp` are found) and tick *Add dependencies with "provided" scope
+to classpath* (the JSP compiler is a provided dependency).
 
 **Eclipse** (with Spring Tools 4 recommended): *File > Import > Maven >
 Existing Maven Projects*, then right-click `StockSenseApplication` → *Run As >

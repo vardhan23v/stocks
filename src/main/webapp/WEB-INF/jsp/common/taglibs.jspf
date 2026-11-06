@@ -1,0 +1,16 @@
+<%--
+  Included at the top of every JSP page with
+      <%@ include file="/WEB-INF/jsp/common/taglibs.jspf" %>
+
+  Escaping rule used in all pages: text that comes from the database or from
+  the user is printed with <c:out value="..."/> (or fn:escapeXml inside an
+  attribute). Plain ${...} is only used for numbers, fixed words and the
+  output of the "fmt" formatter, which never contains HTML.
+--%>
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
+<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
+<%@ taglib prefix="ss" tagdir="/WEB-INF/tags" %>
+<c:set var="ctx" value="${pageContext.request.contextPath}" scope="request"/>

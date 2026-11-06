@@ -1,6 +1,32 @@
 # Verification report
 
-## Spring Boot version (current)
+## JSP views (current)
+
+Environment: OpenJDK 21.0.13, Maven 3.10, MySQL 26.10, Spring Boot 3.3.5,
+views as JSP + JSTL compiled by Tomcat Jasper; the WAR run with `java -jar`
+on port 8090.
+
+`mvn clean package`: **20 / 20 tests pass**.
+
+Checked against the running WAR: every user and admin page returns 200 with
+no unevaluated `${...}` and no server errors; charts render (4 on the details
+page) with no console errors and no horizontal scrolling at phone width;
+404 and expired-form (403) pages use `error.jsp`; a JSP cannot be opened
+directly (`/WEB-INF/jsp/login.jsp` → 404); USER opening `/admin/users` is
+redirected to the dashboard; watchlist add / duplicate refused / remove, and
+`returnTo` cannot leave the site; admin stock add / duplicate refused / edit /
+delete through `form:form`; rules form binding (`rules[0].weight`, checkboxes)
+— weight 150 refused, valid save re-evaluates 15 stocks; a user registered
+with the name `<img src=x onerror=alert(1)> Tester` is shown escaped in the
+menu, dashboard and admin user list (including the confirm text).
+
+Bugs found and fixed in this pass: Spring Boot's error page fell back to the
+"Whitelabel" page until `spring.mvc.view.prefix/suffix` were set; titles with
+"·" were garbled until every page declared `pageEncoding="UTF-8"` itself (an
+included file's encoding does not apply to the including page); and
+`trimDirectiveWhitespaces` removed the space between two EL values ("BUY4").
+
+## Spring Boot version with Thymeleaf views
 
 Environment: OpenJDK 21.0.13, Maven 3.10, MySQL 26.10, Spring Boot 3.3.5
 (embedded Tomcat), run as `java -jar` on port 8090 and driven in a browser.
