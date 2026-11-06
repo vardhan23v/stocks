@@ -23,14 +23,21 @@ import org.springframework.stereotype.Component;
  *
  * When RESET_DEMO_PASSWORDS lists emails (comma separated), each listed demo
  * account gets back the password hash it has in sample-data.sql, so the
- * passwords in the README work again. Only the demo accounts defined in that
- * file can be reset; any other email is ignored. Remove the variable after use.
+ * passwords in the README work again. A demo account that was deleted is
+ * re-added with its name and role from that file. Only the demo accounts
+ * defined there are affected; any other email is ignored. Remove the
+ * variable after use.
  */
 @Component
 public class DemoPasswordReset implements ApplicationRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(DemoPasswordReset.class);
-    private static final Pattern DEMO_ROW = Pattern.compile("'([^']+@stocksense\\.test)', '(pbkdf2\\$[^']+)'");
+    private static final Pattern DEMO_ROW = Pattern.compile(
+            "\\('([^']+)', '([^']+@stocksense\\.test)', '(pbkdf2\\$[^']+)', '(USER|ADMIN)'\\)");
+
+    /** One demo account as defined in sample-data.sql. */
+    record DemoAccount(String name, String email, String passwordHash, String role) {
+    }
 
     private final JdbcTemplate jdbc;
     private final String emails;
@@ -45,30 +52,37 @@ public class DemoPasswordReset implements ApplicationRunner {
         if (emails == null || emails.isBlank()) {
             return;
         }
-        Map<String, String> demoHashes = demoHashes();
+        Map<String, DemoAccount> accounts = demoAccounts();
         for (String raw : emails.split(",")) {
             String email = raw.trim().toLowerCase(Locale.ROOT);
-            String hash = demoHashes.get(email);
-            if (hash == null) {
+            DemoAccount account = accounts.get(email);
+            if (account == null) {
                 LOG.warn("RESET_DEMO_PASSWORDS: {} is not a demo account, skipped.", email);
                 continue;
             }
-            int updated = jdbc.update("UPDATE users SET password_hash = ?, is_active = TRUE WHERE email = ?", hash, email);
-            LOG.info("RESET_DEMO_PASSWORDS: {} {}", email, updated == 1 ? "reset to its demo password." : "not found.");
+            int updated = jdbc.update("UPDATE users SET password_hash = ?, is_active = TRUE WHERE email = ?",
+                    account.passwordHash(), email);
+            if (updated == 1) {
+                LOG.info("RESET_DEMO_PASSWORDS: {} reset to its demo password.", email);
+            } else {
+                jdbc.update("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
+                        account.name(), email, account.passwordHash(), account.role());
+                LOG.info("RESET_DEMO_PASSWORDS: {} was missing and has been re-added as {}.", email, account.role());
+            }
         }
     }
 
-    /** email -> PBKDF2 hash of every demo account in sample-data.sql. */
-    static Map<String, String> demoHashes() throws IOException {
+    /** email -> demo account, for every demo account in sample-data.sql. */
+    static Map<String, DemoAccount> demoAccounts() throws IOException {
         String sql;
         try (InputStream input = new ClassPathResource("sample-data.sql").getInputStream()) {
             sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
-        Map<String, String> hashes = new LinkedHashMap<>();
+        Map<String, DemoAccount> accounts = new LinkedHashMap<>();
         Matcher matcher = DEMO_ROW.matcher(sql);
         while (matcher.find()) {
-            hashes.put(matcher.group(1), matcher.group(2));
+            accounts.put(matcher.group(2), new DemoAccount(matcher.group(1), matcher.group(2), matcher.group(3), matcher.group(4)));
         }
-        return hashes;
+        return accounts;
     }
 }
