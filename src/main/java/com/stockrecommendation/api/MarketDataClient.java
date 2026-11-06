@@ -11,19 +11,19 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockrecommendation.model.ApiSyncLog;
 import com.stockrecommendation.model.StockPrice;
 
 /**
  * HTTP client for the Alpha Vantage REST API (https://www.alphavantage.co/documentation/),
- * built on java.net.http.HttpClient.
+ * built on java.net.http.HttpClient, with Jackson for the JSON.
  *
  * Endpoints used:
  *   TIME_SERIES_DAILY  daily OHLCV, outputsize=compact (latest 100 bars - the free tier limit)
@@ -41,6 +41,8 @@ public class MarketDataClient {
 
     public static final String PROVIDER = "ALPHA_VANTAGE";
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private final HttpClient httpClient;
     private final String baseUrl;
     private final String apiKey;
@@ -55,30 +57,34 @@ public class MarketDataClient {
 
     /** Daily bars for one symbol, oldest first. */
     public MarketDataResponse fetchDaily(String symbol) throws MarketDataException {
-        JsonObject body = get(Map.of("function", "TIME_SERIES_DAILY", "symbol", symbol, "outputsize", "compact"));
-        JsonElement series = body.get("Time Series (Daily)");
-        if (series == null || !series.isJsonObject() || series.getAsJsonObject().isEmpty()) {
+        JsonNode body = get(Map.of("function", "TIME_SERIES_DAILY", "symbol", symbol, "outputsize", "compact"));
+        JsonNode series = body.get("Time Series (Daily)");
+        if (series == null || !series.isObject() || series.isEmpty()) {
             throw new MarketDataException(ApiSyncLog.NO_DATA, "The provider returned no daily prices for " + symbol + ".");
         }
 
         MarketDataResponse response = new MarketDataResponse(PROVIDER, symbol);
         // TreeMap sorts the "yyyy-MM-dd" keys, which gives oldest-first order.
-        TreeMap<String, JsonElement> sorted = new TreeMap<>(series.getAsJsonObject().asMap());
+        TreeMap<String, JsonNode> sorted = new TreeMap<>();
+        for (Iterator<Map.Entry<String, JsonNode>> it = series.fields(); it.hasNext();) {
+            Map.Entry<String, JsonNode> entry = it.next();
+            sorted.put(entry.getKey(), entry.getValue());
+        }
         try {
-            for (Map.Entry<String, JsonElement> entry : sorted.entrySet()) {
-                JsonObject bar = entry.getValue().getAsJsonObject();
+            for (Map.Entry<String, JsonNode> entry : sorted.entrySet()) {
+                JsonNode bar = entry.getValue();
                 StockPrice price = new StockPrice(
                         LocalDate.parse(entry.getKey()).atStartOfDay(),
                         decimal(bar, "1. open"), decimal(bar, "2. high"), decimal(bar, "3. low"),
                         decimal(bar, "4. close"),
-                        bar.has("5. volume") ? bar.get("5. volume").getAsLong() : null,
+                        bar.has("5. volume") ? Long.parseLong(bar.get("5. volume").asText()) : null,
                         PROVIDER);
                 response.getBars().add(price);
             }
         } catch (RuntimeException e) {
             throw new MarketDataException(ApiSyncLog.ERROR, "The provider response for " + symbol + " could not be parsed.", e);
         }
-        response.setLastRefreshed(sorted.isEmpty() ? null : LocalDate.parse(sorted.lastKey()).atStartOfDay());
+        response.setLastRefreshed(LocalDate.parse(sorted.lastKey()).atStartOfDay());
         return response;
     }
 
@@ -87,7 +93,7 @@ public class MarketDataClient {
      * value is never filled in when the provider did not supply it.
      */
     public MarketDataResponse fetchOverview(String symbol) throws MarketDataException {
-        JsonObject body = get(Map.of("function", "OVERVIEW", "symbol", symbol));
+        JsonNode body = get(Map.of("function", "OVERVIEW", "symbol", symbol));
         MarketDataResponse response = new MarketDataResponse(PROVIDER, symbol);
         response.setMarketCap(optionalDecimal(body, "MarketCapitalization"));
         response.setWeek52High(optionalDecimal(body, "52WeekHigh"));
@@ -96,7 +102,7 @@ public class MarketDataClient {
         return response;
     }
 
-    private JsonObject get(Map<String, String> parameters) throws MarketDataException {
+    private JsonNode get(Map<String, String> parameters) throws MarketDataException {
         StringBuilder url = new StringBuilder(baseUrl).append('?');
         parameters.forEach((key, value) -> url.append(encode(key)).append('=').append(encode(value)).append('&'));
         url.append("apikey=").append(encode(apiKey));
@@ -123,19 +129,22 @@ public class MarketDataClient {
             throw new MarketDataException(ApiSyncLog.ERROR, "The provider answered with HTTP " + response.statusCode() + ".");
         }
 
-        JsonObject body;
+        JsonNode body;
         try {
-            body = JsonParser.parseString(response.body()).getAsJsonObject();
-        } catch (JsonParseException | IllegalStateException e) {
+            body = JSON.readTree(response.body());
+        } catch (JsonProcessingException e) {
             throw new MarketDataException(ApiSyncLog.ERROR, "The provider did not return valid JSON.", e);
+        }
+        if (body == null || !body.isObject()) {
+            throw new MarketDataException(ApiSyncLog.ERROR, "The provider did not return a JSON object.");
         }
 
         if (body.has("Note") || body.has("Information")) {
-            String text = body.has("Note") ? body.get("Note").getAsString() : body.get("Information").getAsString();
+            String text = body.has("Note") ? body.get("Note").asText() : body.get("Information").asText();
             throw new MarketDataException(ApiSyncLog.RATE_LIMITED, "Provider limit or plan restriction: " + scrub(text));
         }
         if (body.has("Error Message")) {
-            String text = body.get("Error Message").getAsString();
+            String text = body.get("Error Message").asText();
             String status = text.toLowerCase().contains("apikey") ? ApiSyncLog.ERROR : ApiSyncLog.NO_DATA;
             throw new MarketDataException(status, "Provider error: " + scrub(text));
         }
@@ -147,16 +156,16 @@ public class MarketDataClient {
         return apiKey == null || apiKey.isEmpty() ? text : text.replace(apiKey, "***");
     }
 
-    private static BigDecimal decimal(JsonObject bar, String field) {
-        return new BigDecimal(bar.get(field).getAsString());
+    private static BigDecimal decimal(JsonNode bar, String field) {
+        return new BigDecimal(bar.get(field).asText());
     }
 
-    private static BigDecimal optionalDecimal(JsonObject body, String field) {
-        if (!body.has(field) || body.get(field).isJsonNull()) {
+    private static BigDecimal optionalDecimal(JsonNode body, String field) {
+        if (!body.has(field) || body.get(field).isNull()) {
             return null;
         }
         try {
-            return new BigDecimal(body.get(field).getAsString());
+            return new BigDecimal(body.get(field).asText());
         } catch (NumberFormatException e) {
             return null;   // Alpha Vantage writes "None" for unknown values
         }

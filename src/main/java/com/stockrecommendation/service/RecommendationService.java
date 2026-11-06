@@ -1,6 +1,7 @@
 package com.stockrecommendation.service;
 
-import java.io.Serializable;
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -9,7 +10,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockrecommendation.dao.ActivityDAO;
 import com.stockrecommendation.dao.IndicatorDAO;
 import com.stockrecommendation.dao.RecommendationDAO;
@@ -44,23 +46,32 @@ import com.stockrecommendation.model.User;
  * Each rule writes one plain-English reason line, which is stored as the
  * explanation. The output is educational information, not financial advice.
  */
-public class RecommendationService implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+@Service
+public class RecommendationService {
 
 
     /** SMA(50) needs 50 bars and the MACD signal 34; 60 leaves a small margin. */
     public static final int MIN_BARS = 60;
 
-    private static final Gson GSON = new Gson();
+    private static final ObjectMapper JSON = new ObjectMapper();
 
-    private final RecommendationDAO recommendationDAO = new RecommendationDAO();
-    private final IndicatorDAO indicatorDAO = new IndicatorDAO();
-    private final RuleDAO ruleDAO = new RuleDAO();
-    private final StockDAO stockDAO = new StockDAO();
-    private final ActivityDAO activityDAO = new ActivityDAO();
-    private final MarketDataService marketDataService = new MarketDataService();
-    private final StockAnalysisService analysisService = new StockAnalysisService();
+    private final RecommendationDAO recommendationDAO;
+    private final IndicatorDAO indicatorDAO;
+    private final RuleDAO ruleDAO;
+    private final StockDAO stockDAO;
+    private final ActivityDAO activityDAO;
+    private final MarketDataService marketDataService;
+    private final StockAnalysisService analysisService;
+
+    public RecommendationService(RecommendationDAO recommendationDAO, IndicatorDAO indicatorDAO, RuleDAO ruleDAO, StockDAO stockDAO, ActivityDAO activityDAO, MarketDataService marketDataService, StockAnalysisService analysisService) {
+        this.recommendationDAO = recommendationDAO;
+        this.indicatorDAO = indicatorDAO;
+        this.ruleDAO = ruleDAO;
+        this.stockDAO = stockDAO;
+        this.activityDAO = activityDAO;
+        this.marketDataService = marketDataService;
+        this.analysisService = analysisService;
+    }
 
     // ------------------------------------------------------------ queries
 
@@ -298,7 +309,11 @@ public class RecommendationService implements Serializable {
         supporting.put("volumeRatio", Double.isNaN(volumeRatio) ? null : round(volumeRatio));
         supporting.put("maxScore", maxScore);
         supporting.put("signals", signals);
-        recommendation.setSupportingJson(GSON.toJson(supporting));
+        try {
+            recommendation.setSupportingJson(JSON.writeValueAsString(supporting));
+        } catch (JsonProcessingException e) {
+            recommendation.setSupportingJson(null);   // the explanation text still carries every reason
+        }
         return recommendation;
     }
 

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
   <title id="t">StockSense architecture</title>
-  <desc id="d">Layered architecture: browser, Jakarta Faces with AuthFilter, CDI backing beans, services, DAOs, JDBC and MySQL, plus the market data client calling Alpha Vantage.</desc>
+  <desc id="d">Layered architecture: browser, Spring Security, Spring MVC controllers with Thymeleaf, services, JdbcTemplate DAOs and MySQL, plus the market data client calling Alpha Vantage.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="#5b6475"/>
@@ -17,42 +17,42 @@
     </style>
   </defs>
   <rect width="960" height="620" fill="#f6f7fa"/>
-  <text x="32" y="38" font-size="20" font-weight="700" fill="#161a22">StockSense &#8212; JSF layered architecture (same pattern as NitteSync)</text>
-  <text x="32" y="60" class="note">XHTML &#8594; JSF backing beans &#8594; Service &#8594; DAO &#8594; JDBC &#8594; MySQL, deployed as one WAR on Apache Tomcat 10.1</text>
+  <text x="32" y="38" font-size="20" font-weight="700" fill="#161a22">StockSense &#8212; Spring Boot layered architecture</text>
+  <text x="32" y="60" class="note">Spring MVC &#8594; @Service &#8594; @Repository (JdbcTemplate) &#8594; MySQL, one executable jar with embedded Tomcat</text>
 
   <!-- Browser -->
   <rect class="box" x="32" y="84" width="600" height="70" rx="10"/>
   <text class="layer" x="48" y="104">BROWSER</text>
-  <text class="title" x="48" y="126">XHTML pages + Bootstrap 5 + vanilla JS</text>
-  <text class="item" x="48" y="144">Chart.js 4 renders price, volume, RSI, MACD from JSON written by the beans</text>
+  <text class="title" x="48" y="126">Thymeleaf HTML + Bootstrap 5 + vanilla JS</text>
+  <text class="item" x="48" y="144">Chart.js 4 renders price, volume, RSI, MACD from JSON written by the controllers</text>
 
-  <!-- Faces + filter -->
+  <!-- Security + MVC -->
   <rect class="box" x="32" y="180" width="600" height="70" rx="10"/>
-  <text class="layer" x="48" y="200">WEB TIER &#183; JSF ON TOMCAT 10.1</text>
-  <text class="title" x="48" y="222">JSF (Jakarta Faces 4.0): AuthFilter &#8594; FacesServlet</text>
-  <text class="item" x="48" y="240">Mojarra 4.0.27 &#183; Facelets XHTML views &#183; login + role check before JSF runs</text>
+  <text class="layer" x="48" y="200">WEB TIER &#183; SPRING BOOT 3.3 (EMBEDDED TOMCAT)</text>
+  <text class="title" x="48" y="222">Spring Security filter chain &#8594; DispatcherServlet</text>
+  <text class="item" x="48" y="240">Form login, roles (/admin/** = ADMIN), CSRF &#183; Thymeleaf templates</text>
 
   <!-- Beans -->
   <rect class="box" x="32" y="276" width="600" height="70" rx="10"/>
-  <text class="layer" x="48" y="296">BACKING BEANS &#183; CDI 4.0 (WELD 5.1.7)</text>
-  <text class="title" x="48" y="318">@Named + @RequestScoped / @ViewScoped</text>
-  <text class="mono" x="48" y="337">LoginBean DashboardBean StockBean StockDetailsBean WatchlistBean Admin*Bean</text>
+  <text class="layer" x="48" y="296">SPRING MVC CONTROLLERS</text>
+  <text class="title" x="48" y="318">@Controller + @GetMapping / @PostMapping</text>
+  <text class="mono" x="48" y="337">AuthController DashboardController StockController Admin*Controller</text>
 
   <!-- Services -->
   <rect class="box" x="32" y="372" width="600" height="70" rx="10"/>
-  <text class="layer" x="48" y="392">SERVICES &#183; BUSINESS RULES, SECOND AUTHORISATION CHECK</text>
+  <text class="layer" x="48" y="392">@SERVICE &#183; BUSINESS RULES, SECOND AUTHORISATION CHECK</text>
   <text class="mono" x="48" y="414">AuthService StockService WatchlistService AdminService</text>
   <text class="mono" x="48" y="432">MarketDataService StockAnalysisService RecommendationService</text>
 
   <!-- DAO -->
   <rect class="box" x="32" y="468" width="600" height="56" rx="10"/>
-  <text class="layer" x="48" y="488">DAO &#183; PLAIN JDBC, PREPAREDSTATEMENT ONLY</text>
+  <text class="layer" x="48" y="488">@REPOSITORY DAO &#183; SPRING JDBCTEMPLATE, @TRANSACTIONAL</text>
   <text class="mono" x="48" y="508">UserDAO StockDAO StockPriceDAO RecommendationDAO WatchlistDAO RuleDAO SyncLogDAO ...</text>
 
   <!-- MySQL -->
   <rect class="box" x="32" y="548" width="600" height="52" rx="10"/>
   <text class="title" x="48" y="571">MySQL 8+ &#183; stock_recommendation_db</text>
-  <text class="item" x="48" y="589">DBConnection reads db.properties (or -D / env overrides) &#183; Connector/J 8.4.0</text>
+  <text class="item" x="48" y="589">HikariCP DataSource from DB_URL / DB_USER / DB_PASSWORD &#183; Connector/J 8.4.0</text>
 
   <g>
     <path class="edge" d="M332 154 V176"/>
@@ -66,9 +66,9 @@
   <rect class="box" x="680" y="372" width="248" height="128" rx="10"/>
   <text class="layer" x="696" y="392">API CLIENT</text>
   <text class="title" x="696" y="414">MarketDataClient</text>
-  <text class="item" x="696" y="434">java.net.http.HttpClient + Gson</text>
+  <text class="item" x="696" y="434">java.net.http.HttpClient + Jackson</text>
   <text class="item" x="696" y="452">rate-limit / error detection</text>
-  <text class="item" x="696" y="470">key from app.properties, -D or</text>
+  <text class="item" x="696" y="470">key only from the env variable</text>
   <text class="mono" x="696" y="488">ALPHA_VANTAGE_API_KEY</text>
 
   <rect class="box" x="680" y="180" width="248" height="120" rx="10"/>

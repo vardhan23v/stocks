@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" data-bs-theme="dark">
+<head th:replace="~{layout :: head('Stocks')}"></head>
+<body>
+<th:block th:replace="~{layout :: top}"></th:block>
+<main class="ss-main" id="main"><div class="container-xl">
+    <ul th:replace="~{layout :: messages}"></ul>
+
+    <div class="ss-page-head">
+        <div>
+            <p class="ss-eyebrow">Explore</p>
+            <h1>Stocks</h1>
+        </div>
+        <span class="ss-badge-sample" th:if="${anySample}">Prices are sample data</span>
+    </div>
+
+    <!-- A plain GET form, so every search is a bookmarkable URL. -->
+    <form class="ss-card mb-3" method="get" th:action="@{/stocks}" data-autosubmit="true" role="search">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" for="q">Company or ticker</label>
+                <input id="q" class="form-control" type="search" name="q" th:value="${q}" placeholder="e.g. INFY or Apple" maxlength="60"/>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="exchange">Exchange</label>
+                <select id="exchange" name="exchange" class="form-select">
+                    <option value="">All</option>
+                    <option th:each="e : ${exchanges}" th:value="${e}" th:text="${e}" th:selected="${e == exchange}"></option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="sector">Sector</label>
+                <select id="sector" name="sector" class="form-select">
+                    <option value="">All sectors</option>
+                    <option th:each="s : ${sectors}" th:value="${s}" th:text="${s}" th:selected="${s == sector}"></option>
+                </select>
+            </div>
+            <div class="col-8 col-md-2">
+                <label class="form-label" for="sort">Sort by</label>
+                <select id="sort" name="sort" class="form-select">
+                    <option value="symbol" th:selected="${sort == 'symbol'}">Ticker A-Z</option>
+                    <option value="name" th:selected="${sort == 'name'}">Company A-Z</option>
+                    <option value="change_desc" th:selected="${sort == 'change_desc'}">Biggest gain</option>
+                    <option value="change_asc" th:selected="${sort == 'change_asc'}">Biggest fall</option>
+                    <option value="price" th:selected="${sort == 'price'}">Highest price</option>
+                </select>
+            </div>
+            <div class="col-4 col-md-1 d-grid">
+                <button class="btn btn-primary" type="submit">Go</button>
+            </div>
+        </div>
+        <div class="small ss-muted mt-2" th:if="${filtered}">
+            <th:block th:text="|${stocks.size()} result(s).|"></th:block> <a th:href="@{/stocks}">Clear filters</a>
+        </div>
+    </form>
+
+    <div class="ss-card ss-card-flush">
+        <div class="ss-empty" th:if="${stocks.isEmpty()}">
+            <div class="ss-empty-icon"><i class="bi bi-search" aria-hidden="true"></i></div>
+            <p class="mb-0">No stocks match your search.</p>
+        </div>
+        <div class="table-responsive" th:unless="${stocks.isEmpty()}">
+            <table class="table table-hover ss-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Stock</th>
+                        <th scope="col" class="d-none d-md-table-cell">Exchange</th>
+                        <th scope="col" class="d-none d-lg-table-cell">Sector</th>
+                        <th scope="col" class="num text-end">Latest close</th>
+                        <th scope="col" class="text-end">Change</th>
+                        <th scope="col" class="d-none d-lg-table-cell">As of</th>
+                        <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="s : ${stocks}">
+                        <td>
+                            <a class="ss-symbol" th:href="@{/stocks/{id}(id=${s.id})}" th:text="${s.symbol}"></a>
+                            <div class="ss-company" th:text="${s.companyName}"></div>
+                        </td>
+                        <td class="d-none d-md-table-cell"><span class="ss-badge-source" th:text="${s.exchange}"></span></td>
+                        <td class="d-none d-lg-table-cell ss-muted small"><th:block th:text="${s.sector}"></th:block><div class="ss-faint" th:text="${s.industry}"></div></td>
+                        <td class="num text-end fw-semibold">
+                            <th:block th:if="${s.hasPrice}" th:text="${s.currencySymbol} + ${@fmt.money(s.latestPrice)}"></th:block>
+                            <span class="ss-faint" th:unless="${s.hasPrice}">No data</span>
+                        </td>
+                        <td class="text-end"><th:block th:replace="~{fragments/widgets :: priceChange(${s}, false)}"></th:block></td>
+                        <td class="d-none d-lg-table-cell small">
+                            <th:block th:if="${s.lastUpdated != null}" th:text="${@fmt.date(s.lastUpdated)}"></th:block>
+                            <div><th:block th:replace="~{fragments/widgets :: dataBadge(${s.dataSource})}"></th:block></div>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <form th:unless="${watchedIds.contains(s.id)}" th:action="@{/watchlist/add}" method="post" class="m-0">
+                                <input type="hidden" name="stockId" th:value="${s.id}"/>
+                                <input type="hidden" name="returnTo" th:value="${currentUrl}"/>
+                                <button type="submit" class="btn btn-sm btn-ghost">Watch</button>
+                            </form>
+                            <span class="small up" th:if="${watchedIds.contains(s.id)}"><i class="bi bi-star-fill" aria-hidden="true"></i> Watching</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p class="small ss-faint mt-2">Change compares the two most recent stored closes. Prices are end-of-day values with their source - never real-time quotes.</p>
+</div></main>
+<footer th:replace="~{layout :: footer}"></footer>
+<th:block th:replace="~{layout :: scripts}"></th:block>
+</body>
+</html>

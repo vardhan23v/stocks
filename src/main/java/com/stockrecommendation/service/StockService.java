@@ -1,6 +1,7 @@
 package com.stockrecommendation.service;
 
-import java.io.Serializable;
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -23,9 +24,8 @@ import com.stockrecommendation.model.User;
  * preferred data source (see MarketDataService.preferredSources), with the
  * source and timestamp - never a number without provenance.
  */
-public class StockService implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+@Service
+public class StockService {
 
 
     public static final String SORT_SYMBOL = "symbol";
@@ -38,9 +38,17 @@ public class StockService implements Serializable {
     private static final Pattern API_SYMBOL = Pattern.compile("^[A-Z0-9.&:-]{1,40}$");
     private static final Pattern CURRENCY = Pattern.compile("^[A-Z]{3}$");
 
-    private final StockDAO stockDAO = new StockDAO();
-    private final StockPriceDAO priceDAO = new StockPriceDAO();
-    private final ActivityDAO activityDAO = new ActivityDAO();
+    private final StockDAO stockDAO;
+    private final StockPriceDAO priceDAO;
+    private final ActivityDAO activityDAO;
+    private final MarketDataService marketDataService;
+
+    public StockService(StockDAO stockDAO, StockPriceDAO priceDAO, ActivityDAO activityDAO, MarketDataService marketDataService) {
+        this.stockDAO = stockDAO;
+        this.priceDAO = priceDAO;
+        this.activityDAO = activityDAO;
+        this.marketDataService = marketDataService;
+    }
 
     // ------------------------------------------------------------ reading
 
@@ -122,7 +130,7 @@ public class StockService implements Serializable {
             if (bySource == null) {
                 continue;
             }
-            for (String source : MarketDataService.preferredSources()) {
+            for (String source : marketDataService.preferredSources()) {
                 List<StockPrice> bars = bySource.get(source);
                 if (bars != null && !bars.isEmpty()) {
                     StockPrice newest = bars.get(0);

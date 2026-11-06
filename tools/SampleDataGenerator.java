@@ -28,9 +28,9 @@ import com.stockrecommendation.util.PasswordUtil;
  * application's own StockAnalysisService and RecommendationService, so the
  * stored rows are exactly what the running application would produce.
  *
- * Run from the project root after `mvn compile`:
+ * Run from the project root after `mvn package`:
  *
- *   java -cp "target/classes:$HOME/.m2/repository/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar" \
+ *   java -cp "target/classes:$(mvn -q dependency:build-classpath -Dmdep.outputFile=/dev/stdout)" \
  *        tools/SampleDataGenerator.java > src/main/resources/sample-data.sql
  */
 public class SampleDataGenerator {

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" data-bs-theme="dark">
+<head th:replace="~{layout :: head('Watchlist')}"></head>
+<body>
+<th:block th:replace="~{layout :: top}"></th:block>
+<main class="ss-main" id="main"><div class="container-xl">
+    <ul th:replace="~{layout :: messages}"></ul>
+
+    <div class="ss-page-head">
+        <div>
+            <p class="ss-eyebrow">Private to you</p>
+            <h1>Your watchlist</h1>
+        </div>
+        <form class="d-flex gap-2 ss-add-form" th:action="@{/watchlist/add}" method="post">
+            <label class="visually-hidden" for="stockId">Add a stock</label>
+            <select id="stockId" name="stockId" class="form-select">
+                <option value="">Add a stock...</option>
+                <option th:each="st : ${availableStocks}" th:value="${st.id}" th:text="|${st.symbol} - ${st.companyName}|"></option>
+            </select>
+            <input type="hidden" name="returnTo" th:value="${currentUrl}"/>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </form>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-4"><div class="ss-stat"><div class="ss-stat-label">Stocks</div><div class="ss-stat-value" th:text="${entries.size()}"></div></div></div>
+        <div class="col-4"><div class="ss-stat"><div class="ss-stat-label">Rising</div><div class="ss-stat-value up" th:text="${gainersCount}"></div></div></div>
+        <div class="col-4"><div class="ss-stat"><div class="ss-stat-label">Falling</div><div class="ss-stat-value down" th:text="${decliningCount}"></div></div></div>
+    </div>
+
+    <div class="ss-card ss-card-flush">
+        <div class="ss-card-head flex-wrap">
+            <h2>Price movement</h2>
+            <nav class="ss-segmented" aria-label="Sort watchlist">
+                <a th:href="@{/watchlist(sort='change_desc')}" th:classappend="${sort == 'change_desc'} ? 'is-active'">Biggest gain</a>
+                <a th:href="@{/watchlist(sort='change_asc')}" th:classappend="${sort == 'change_asc'} ? 'is-active'">Biggest fall</a>
+                <a th:href="@{/watchlist(sort='symbol')}" th:classappend="${sort == 'symbol'} ? 'is-active'">Ticker</a>
+                <a th:href="@{/watchlist(sort='added')}" th:classappend="${sort == 'added'} ? 'is-active'">Recently added</a>
+            </nav>
+        </div>
+
+        <div class="ss-empty" th:if="${entries.isEmpty()}">
+            <div class="ss-empty-icon"><i class="bi bi-star" aria-hidden="true"></i></div>
+            <p>You are not watching any stocks yet.</p>
+            <a class="btn btn-ghost btn-sm" th:href="@{/stocks}">Explore stocks</a>
+        </div>
+
+        <div class="table-responsive mt-2" th:unless="${entries.isEmpty()}">
+            <table class="table table-hover ss-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Stock</th>
+                        <th scope="col" class="num text-end">Latest close</th>
+                        <th scope="col" class="text-end">Change</th>
+                        <th scope="col" class="d-none d-md-table-cell">As of</th>
+                        <th scope="col" class="d-none d-lg-table-cell">Added</th>
+                        <th scope="col" class="text-end"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="w : ${entries}">
+                        <td>
+                            <a class="ss-symbol" th:href="@{/stocks/{id}(id=${w.stock.id})}" th:text="${w.stock.symbol}"></a>
+                            <span class="ss-faint small ms-1" th:text="${w.stock.exchange}"></span>
+                            <div class="ss-company" th:text="${w.stock.companyName}"></div>
+                            <span class="small down" th:unless="${w.stock.active}">No longer listed</span>
+                        </td>
+                        <td class="num text-end fw-semibold">
+                            <th:block th:if="${w.stock.hasPrice}" th:text="${w.stock.currencySymbol} + ${@fmt.money(w.stock.latestPrice)}"></th:block>
+                            <span class="ss-faint" th:unless="${w.stock.hasPrice}">No data</span>
+                        </td>
+                        <td class="text-end"><th:block th:replace="~{fragments/widgets :: priceChange(${w.stock}, false)}"></th:block></td>
+                        <td class="d-none d-md-table-cell small">
+                            <th:block th:if="${w.stock.lastUpdated != null}" th:text="${@fmt.date(w.stock.lastUpdated)}"></th:block>
+                            <div><th:block th:replace="~{fragments/widgets :: dataBadge(${w.stock.dataSource})}"></th:block></div>
+                        </td>
+                        <td class="d-none d-lg-table-cell small ss-muted" th:text="${@fmt.date(w.addedAt)}"></td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-ghost me-1" th:href="@{/stocks/{id}(id=${w.stock.id})}">Details</a>
+                            <form th:action="@{/watchlist/remove}" method="post" class="d-inline m-0" onsubmit="return confirm(this.dataset.confirm);"
+                                  th:attr="data-confirm=|Remove ${w.stock.symbol} from your watchlist?|">
+                                <input type="hidden" name="stockId" th:value="${w.stockId}"/>
+                                <input type="hidden" name="returnTo" th:value="${currentUrl}"/>
+                                <button type="submit" class="btn btn-sm btn-danger-soft">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p class="small ss-faint mt-2">Change compares the two most recent stored closes of each stock.</p>
+</div></main>
+<footer th:replace="~{layout :: footer}"></footer>
+<th:block th:replace="~{layout :: scripts}"></th:block>
+</body>
+</html>

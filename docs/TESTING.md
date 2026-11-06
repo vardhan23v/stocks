@@ -1,5 +1,35 @@
 # Verification report
 
+## Spring Boot version (current)
+
+Environment: OpenJDK 21.0.13, Maven 3.10, MySQL 26.10, Spring Boot 3.3.5
+(embedded Tomcat), run as `java -jar` on port 8090 and driven in a browser.
+
+`mvn clean package`: **19 / 19 tests pass** — the 13 engine/indicator tests
+below, 2 password-encoder tests (including the stored demo admin hash) and 4
+MockMvc security tests (anonymous → login; USER blocked from `/admin/**` for
+GET and POST; POST without CSRF token → 403).
+
+End-to-end, all passed: registration with auto-login; wrong password and
+deactivated account refused (`/login?error`, `/login?disabled`); admin login
+with a PBKDF2 hash created before the rewrite; search; INFY details (same
+indicator values, BUY with 6 reasons, 4 charts, 261 bars for 1Y); watchlist
+add / duplicate refused / remove; `returnTo` cannot redirect off-site; USER
+opening `/admin/users` → dashboard with "You are not allowed to open that
+page."; logout; stock add (symbol normalised) / duplicate symbol refused /
+edit / deactivate / delete; user deactivate, own-account delete refused; rule
+weight 150 refused, weight 25 saved and 15 stocks re-evaluated (TATAMOTORS
+−45 → −50), default restored; demo-mode sync refused and logged; provider mode
+against a local Alpha Vantage stub: 100 bars stored, RATE_LIMITED / NO_DATA /
+HTTP 500 handled with cached data kept, second sync served from cache, AAPL
+then uses provider data with 6M/1Y disabled; no horizontal scrolling at 293 px.
+
+One bug was found and fixed during this pass: the recommendation filter tabs
+showed "null" counts (SpEL `map[var]` looks up the literal key).
+
+## JSF version (tag `jsf-version`)
+
+
 Environment: macOS, OpenJDK 21.0.13, Maven 3.10, MySQL 26.10 (Connector/J
 8.4.0), Apache Tomcat 10.1.61. The WAR was deployed to a separate Tomcat
 instance (own `CATALINA_BASE`, port 8090) and driven in a browser.

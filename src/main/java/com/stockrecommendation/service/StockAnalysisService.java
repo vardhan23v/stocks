@@ -1,6 +1,7 @@
 package com.stockrecommendation.service;
 
-import java.io.Serializable;
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -21,9 +22,8 @@ import com.stockrecommendation.model.StockPrice;
  * values of a 20-day SMA). Nothing here is ever filled with made-up values: a
  * stock with too little history simply gets null indicators.
  */
-public class StockAnalysisService implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+@Service
+public class StockAnalysisService {
 
 
     public static final int SMA_SHORT = 20;

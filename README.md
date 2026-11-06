@@ -5,10 +5,8 @@ technical indicators, getting **explainable rule-based BUY / HOLD / SELL
 recommendations**, and keeping a private watchlist. Administrators manage
 users, stock records, the scoring rules and the market data integration.
 
-**Built with JSF (Jakarta Faces 4.0)** + CDI + plain JDBC + MySQL on Tomcat
-10.1 — the same stack and layered architecture as
-[NitteSync](https://github.com/vardhan23v/NitteSync). It is a separate,
-independently deployable application; NitteSync itself is not modified.
+**Built with Spring Boot 3** — Spring MVC, Thymeleaf, Spring Security and
+JdbcTemplate — on MySQL.
 
 **Live demo:** <https://web-production-4861b6.up.railway.app> (sample data;
 demo logins below).
@@ -18,6 +16,10 @@ demo logins below).
 > guarantee any return. Without an API key the app runs on clearly labelled
 > **synthetic SAMPLE DATA**, never presented as real prices.
 
+> **History:** versions up to the git tag `jsf-version` were built with JSF
+> (Jakarta Faces 4.0) + CDI + JDBC on Tomcat 10.1. The application was then
+> rewritten on Spring Boot with the same features, database and design.
+
 ![Architecture](docs/architecture.svg)
 
 ---
@@ -26,14 +28,14 @@ demo logins below).
 
 1. [Features](#features)
 2. [Technology stack](#technology-stack)
-3. [Where JSF is used](#where-jsf-is-used)
+3. [Where Spring is used](#where-spring-is-used)
 4. [Architecture](#architecture)
 5. [Project structure](#project-structure)
 6. [Database setup](#database-setup)
 7. [Market data provider and API key](#market-data-provider-and-api-key)
 8. [Demo mode](#demo-mode)
-9. [Build](#build)
-10. [Deploy on Tomcat 10.1](#deploy-on-tomcat-101)
+9. [Build and run](#build-and-run)
+10. [Deploy on Railway](#deploy-on-railway)
 11. [Eclipse / IntelliJ setup](#eclipse--intellij-setup)
 12. [Demo credentials](#demo-credentials)
 13. [Recommendation engine](#recommendation-engine)
@@ -45,48 +47,39 @@ demo logins below).
 ## Features
 
 ### Regular user
-* Register (PBKDF2-hashed password), log in, log out; session-based login.
-* **Dashboard**: welcome, market overview (tracked stocks, latest data date,
-  provider status), stock search, 3-month performance chart of the watchlist,
-  watchlist preview, top gainers / decliners, latest recommendation cards,
+* Register (PBKDF2-hashed password, logged in straight away), log in, log out.
+* **Dashboard**: market overview (tracked stocks, latest data date, provider
+  status), stock search, 3-month performance chart of the watchlist,
+  watchlist preview, top gainers / decliners, latest recommendations,
   recently viewed stocks.
-* **Stock explorer**: search by ticker or company, filter by exchange and
-  sector, sort by ticker, name, price or price movement. Bookmarkable URLs.
-* **Stock details**: latest stored close with absolute and % change, source
-  and date of the data, volume, range change, 52-week high/low, market cap
+* **Stock explorer** (`/stocks`): search by ticker or company, filter by
+  exchange and sector, sort by ticker, name, price or movement. Bookmarkable URLs.
+* **Stock details** (`/stocks/{id}?range=3M`): latest stored close with change,
+  data date and source, volume, range change, 52-week high/low, market cap
   (only when a provider reports it), company info.
-  * Interactive charts: close with SMA 20 / SMA 50 / EMA 20 overlays, volume,
-    RSI(14) with 30/70 bands, MACD(12,26,9) with signal and histogram.
-  * Ranges 1W / 1M / 3M / 6M / 1Y — only offered when the stored history covers
-    them. 1D is shown disabled (the provider supplies end-of-day bars only).
-  * Indicator cards with plain-language explanations.
-  * The rule-based recommendation with every reason and its contribution.
-  * Daily OHLCV table for the selected range.
-* **Recommendations** page: all stocks, filter by BUY / HOLD / SELL /
-  Insufficient, scoring methodology and current rule weights.
-* **Watchlist**: add / remove, duplicates prevented (service check + UNIQUE
-  constraint), sort by gain / fall / ticker / date added, rising / falling
-  counters. Private: the user id always comes from the session.
+  * Charts: close with SMA 20 / SMA 50 / EMA 20, volume, RSI(14) with 30/70
+    bands, MACD(12,26,9) with signal and histogram.
+  * Ranges 1W / 1M / 3M / 6M / 1Y, offered only when the stored history covers
+    them; 1D is disabled (end-of-day data only).
+  * Indicator cards with plain-language explanations, the recommendation with
+    every reason, and the daily OHLCV table.
+* **Recommendations** (`/recommendations?type=BUY`): all stocks, filter by
+  BUY / HOLD / SELL / Insufficient, methodology and current rule weights.
+* **Watchlist** (`/watchlist`): add / remove, duplicates prevented, sort by
+  gain / fall / ticker / date added. Private: the user always comes from the
+  logged-in principal, never from the request.
 * **Profile**: account details, change name, change password.
 
-### Administrator
-* **Overview**: total users, active stocks, watchlist entries, recommendations,
-  latest market data date, API status and calls used today, system activity
-  log, recent sync attempts.
-* **Users**: activate / deactivate, make admin / user, delete (cannot modify
-  your own account).
-* **Stocks**: add, edit (symbol, exchange, provider symbol, currency, sector,
-  industry, description), activate / deactivate, delete.
-* **Rules**: edit weights and thresholds of the scoring engine (validated,
-  saved in one transaction, then every stock is re-evaluated); view and delete
-  generated recommendations.
-* **Market data**: provider configuration (key shown only as
-  "configured / not configured"), stored rows per source, per-stock **Sync** /
-  **Force** sync, **Sync all stale stocks** on a background thread, and the full
-  data update history (`api_sync_logs`).
-
-Every admin action is authorised twice on the server: by `AuthFilter`
-(`/admin-*` pages need role ADMIN) and again by `AdminService.requireAdmin()`.
+### Administrator (`/admin/**`)
+* **Overview**: users, active stocks, watchlist entries, recommendations,
+  latest market data date, API status and calls today, activity log, recent syncs.
+* **Users**: activate / deactivate, make admin / user, delete (not your own account).
+* **Stocks**: add, edit, activate / deactivate, delete.
+* **Rules**: edit weights and thresholds (validated, saved in one transaction,
+  then every stock is re-evaluated); view and delete generated recommendations.
+* **Market data**: provider configuration (key shown only as configured / not),
+  stored rows per source, per-stock **Sync** / **Force**, **Sync all stale
+  stocks** on a background thread, and the full `api_sync_logs` history.
 
 ---
 
@@ -95,74 +88,61 @@ Every admin action is authorised twice on the server: by `AuthFilter`
 | Layer | Technology |
 |---|---|
 | Language | Java 21 |
-| Web framework | **JSF** — Jakarta Faces 4.0 (Mojarra 4.0.27), Facelets XHTML views |
-| Dependency injection | CDI 4.0.1 — Weld Servlet 5.1.7.Final |
-| Persistence | Plain JDBC (`PreparedStatement` everywhere), MySQL Connector/J 8.4.0 |
+| Framework | **Spring Boot 3.3.5** |
+| Web | **Spring MVC** controllers, embedded Tomcat 10.1 |
+| Views | **Thymeleaf** templates + `thymeleaf-extras-springsecurity6`; HTML5, CSS3, vanilla JS, Bootstrap 5.3.3, Chart.js 4.4.1 |
+| Security | **Spring Security** — form login, roles, CSRF protection, session fixation protection |
+| Data access | **Spring JDBC** (`JdbcTemplate`, `RowMapper`, `@Transactional`), HikariCP pool, MySQL Connector/J 8.4.0 |
 | Database | MySQL 8 or newer (verified on MySQL 26.10) |
-| JSON | Gson 2.11.0 (API responses, chart data) |
+| JSON | Jackson (API responses, chart data) |
 | HTTP client | `java.net.http.HttpClient` |
-| Frontend | XHTML (Facelets), HTML5, CSS3, vanilla JavaScript, Bootstrap 5.3.3, Bootstrap Icons 1.11.3, Chart.js 4.4.1 |
-| Server | Apache Tomcat 10.1 (verified on 10.1.61) |
-| Build | Maven 3.8+, WAR packaging |
-| Tests | JUnit 5 |
+| Build | Maven 3.8+, executable jar (`spring-boot-maven-plugin`) |
+| Tests | JUnit 5, Spring Boot Test, MockMvc, Spring Security Test |
 
-No Spring, Hibernate/JPA, React, Angular or Node.js.
+No JPA/Hibernate: the SQL is written by hand and run with `JdbcTemplate`.
 
 ---
 
-## Where JSF is used
+## Where Spring is used
 
-JSF (JavaServer Faces, now called **Jakarta Faces**) is the web framework of
-the whole application. Every page the browser sees is rendered by JSF.
-
-| JSF part | Where in this project |
+| Spring part | Where in this project |
 |---|---|
-| Implementation | Mojarra 4.0.27 (`org.glassfish:jakarta.faces` in `pom.xml`), API `jakarta.faces-api` 4.0.1 |
-| `FacesServlet` | `WEB-INF/web.xml` maps every `*.xhtml` request to it |
-| Facelets views | All 14 pages (`index.xhtml` … `admin-market-data.xhtml`) |
-| Page template | `WEB-INF/templates/layout.xhtml` with `ui:insert`; pages use `ui:composition` / `ui:define` |
-| Reusable fragments | `WEB-INF/components/*.xhtml` included with `ui:include` + `ui:param` |
-| Backing beans | `bean/*Bean.java`: `@Named` CDI beans, `@RequestScoped` or `@ViewScoped` (JSF 4.0 removed `@ManagedBean`) |
-| Forms and actions | `h:form`, `h:inputText`, `h:inputSecret`, `h:selectOneMenu`, `h:selectBooleanCheckbox`, `h:commandButton`, `h:commandLink`, action methods with parameters, e.g. `#{watchlistBean.remove(w.stockId)}` |
-| Page parameters | `f:viewParam` + `f:viewAction` (e.g. `stock-details.xhtml?stockId=3&range=1Y`) |
-| Converters | `f:convertNumber` (prices, %), `f:convertDateTime type="localDateTime"` |
-| Iteration | `ui:repeat` for tables, cards and the rules editor (inputs inside `ui:repeat`) |
-| Messages | `FacesMessage` via `FacesUtil`, shown by `h:messages`; flash scope keeps them across redirects |
-| Navigation | `faces-config.xml` rules (`loginSuccess`, `adminLoginSuccess`, `logout`) plus implicit `?faces-redirect=true` navigation |
-| Links | `h:link` with `f:param` and `includeViewParams` |
-| Expression Language | `#{...}` in every page, including EL list literals and method calls |
+| Spring Boot | `StockSenseApplication` (`@SpringBootApplication`), `pom.xml` parent `spring-boot-starter-parent` |
+| Configuration | `application.properties` with `${ENV_VAR:default}` placeholders; `@ConfigurationProperties` in `config/MarketProperties` |
+| Dependency injection | `@Service`, `@Repository`, `@Controller`, `@Component`; constructor injection everywhere |
+| Spring MVC | `web/*Controller`, `web/admin/*Controller`: `@GetMapping`, `@PostMapping`, `@PathVariable`, `@RequestParam`, `@ModelAttribute`, `RedirectAttributes` flash messages (post-redirect-get) |
+| `@ControllerAdvice` | `web/GlobalModelAdvice`: current user, current path, provider status for every page; friendly page for `DataAccessException` |
+| Thymeleaf | `templates/layout.html` fragments, `templates/fragments/widgets.html`, 14 pages, `sec:authorize` for role-based menus |
+| Spring Security | `config/SecurityConfig` (URL rules, form login, logout, CSRF, access-denied handling), `security/AppUserDetailsService`, `security/StockSensePasswordEncoder`, `@AuthenticationPrincipal AppUser` |
+| Spring JDBC | `dao/*DAO` on `JdbcTemplate` with `RowMapper`s, `GeneratedKeyHolder`, `batchUpdate`, `DuplicateKeyException` |
+| Transactions | `@Transactional` on the price upsert and the rules update |
+| Task executor | `config/AsyncConfig` — `ThreadPoolTaskExecutor` for background market data syncs |
+| Startup hook | `init/DatabaseInitializer` (`ApplicationRunner` + `ScriptUtils`) |
+| Testing | `@WebMvcTest` + `MockMvc` + `@MockBean` in `SecurityRulesTest` |
 
 ---
 
 ## Architecture
 
 ```
-XHTML page  ->  AuthFilter  ->  FacesServlet  ->  @Named backing bean
-            ->  Service (business rules, 2nd authorisation check)
-            ->  DAO (SQL)  ->  DBConnection (JDBC)  ->  MySQL
+Browser ─► Spring Security filter chain (login, roles, CSRF)
+        ─► Spring MVC @Controller ─► Thymeleaf template
+        ─► @Service (business rules, 2nd authorisation check)
+        ─► @Repository DAO (JdbcTemplate) ─► MySQL
 
-MarketDataService -> MarketDataClient (HttpClient + Gson) -> Alpha Vantage
-                  -> StockPriceDAO (cache in MySQL)          (only with an API key)
+MarketDataService ─► MarketDataClient (HttpClient + Jackson) ─► Alpha Vantage
+                  ─► StockPriceDAO (cache in MySQL)          (only with an API key)
 ```
 
-Conventions taken from NitteSync:
-
-* Backing beans are CDI beans: `@Named` with `@RequestScoped` or
-  `@ViewScoped` (never `@ManagedBean`). `beans.xml` uses
-  `bean-discovery-mode="annotated"`.
-* Services and DAOs are plain classes created with `new`; DAOs wrap
-  `SQLException` in the unchecked `DataAccessException` whose message can be
-  shown to the user.
-* `SessionUtil` keeps the logged-in `User` in the HTTP session under one key;
-  `FacesUtil` adds messages and keeps them across redirects.
-* Pages use `f:viewParam` + `f:viewAction` and `?faces-redirect=true`
-  navigation; one Facelets template (`WEB-INF/templates/layout.xhtml`).
-* Database settings only in `db.properties`.
-
-Differences from NitteSync (deliberate): passwords use **PBKDF2-SHA256 with a
-per-user salt** instead of plain SHA-256, the session id is rotated at login,
-and the database / API settings can be overridden with `-D` properties or
-environment variables so secrets stay out of the WAR.
+* URL security in `SecurityConfig`: `/`, `/login`, `/register` and static files
+  are public; `/admin/**` needs role ADMIN; everything else needs a login.
+  A USER opening an admin URL is sent back to the dashboard with a message;
+  a request without a valid CSRF token gets 403.
+* Services check the admin role again (`AdminService.requireAdmin`) before
+  changing data, and watchlist queries always use the logged-in user's id.
+* Passwords: PBKDF2-SHA256, 210 000 iterations, random salt per user, wrapped
+  as a Spring `PasswordEncoder` — hashes created before the Spring rewrite
+  still work.
 
 Database diagram: [docs/er-diagram.svg](docs/er-diagram.svg)
 
@@ -173,45 +153,43 @@ Database diagram: [docs/er-diagram.svg](docs/er-diagram.svg)
 ## Project structure
 
 ```
-pom.xml
+pom.xml                         Spring Boot parent + starters
+Dockerfile                      Maven build -> Java 21 JRE, java -jar
 README.md
 docs/
-  architecture.svg               layered architecture
-  er-diagram.svg                 database diagram
-  recommendation-methodology.md  scoring rules in detail
-  TESTING.md                     verification report
+  architecture.svg  er-diagram.svg  recommendation-methodology.md  TESTING.md
 tools/
-  SampleDataGenerator.java       dev tool that writes sample-data.sql
+  SampleDataGenerator.java      dev tool that writes sample-data.sql
 src/main/java/com/stockrecommendation/
-  model/    User, Stock, StockPrice, StockIndicator, Recommendation, Watchlist,
-            RecommendationRule, ApiSyncLog, ActivityLog
-  dao/      UserDAO, StockDAO, StockPriceDAO, IndicatorDAO, RecommendationDAO,
-            WatchlistDAO, RuleDAO, SyncLogDAO, ActivityDAO
-  service/  AuthService, StockService, MarketDataService, StockAnalysisService,
-            RecommendationService, WatchlistService, AdminService
-  bean/     LoginBean, RegisterBean, DashboardBean, StockBean, StockDetailsBean,
-            RecommendationBean, WatchlistBean, ProfileBean, MarketStatusBean,
-            AdminDashboardBean, AdminUserBean, AdminStockBean,
-            AdminRecommendationBean, AdminMarketDataBean
-  filter/   AuthFilter
-  api/      MarketDataClient, MarketDataResponse, MarketDataException
-  util/     DBConnection, AppConfig, PasswordUtil, SessionUtil, FacesUtil,
-            JdbcUtil, DataAccessException, AppLifecycleListener, TestConnection
+  StockSenseApplication.java
+  config/    SecurityConfig, MarketProperties, AsyncConfig
+  security/  AppUser, AppUserDetailsService, StockSensePasswordEncoder
+  init/      DatabaseInitializer
+  web/       HomeController, AuthController, DashboardController, StockController,
+             WatchlistController, RecommendationController, ProfileController,
+             GlobalModelAdvice, Formats
+  web/admin/ AdminDashboardController, AdminUserController, AdminStockController,
+             AdminRulesController, AdminMarketDataController
+  service/   AuthService, StockService, StockDetailsService (+ StockDetailsView),
+             DashboardService, MarketDataService, StockAnalysisService,
+             RecommendationService, WatchlistService, AdminService
+  dao/       UserDAO, StockDAO, StockPriceDAO, IndicatorDAO, RecommendationDAO,
+             WatchlistDAO, RuleDAO, SyncLogDAO, ActivityDAO
+  api/       MarketDataClient, MarketDataResponse, MarketDataException
+  model/     User, Stock, StockPrice, StockIndicator, Recommendation, Watchlist,
+             RecommendationRule, ApiSyncLog, ActivityLog
+  util/      PasswordUtil, JdbcUtil
 src/main/resources/
-  db.properties    database connection
-  app.properties   market data provider settings
-  schema.sql       tables, keys, indexes (no DROP statements)
-  sample-data.sql  demo users, stocks, SAMPLE prices, rules, recommendations
-src/main/webapp/
-  index, login, register, dashboard, stocks, stock-details, recommendations,
-  watchlist, profile, admin-dashboard, admin-users, admin-stocks,
-  admin-recommendations, admin-market-data  (.xhtml)
-  resources/css/style.css   resources/js/charts.js   resources/img/favicon.svg
-  WEB-INF/web.xml  beans.xml  faces-config.xml
-  WEB-INF/templates/layout.xhtml
-  WEB-INF/components/price-change.xhtml  data-badge.xhtml  rec-badge.xhtml  score-bar.xhtml
-src/test/java/com/stockrecommendation/service/
-  StockAnalysisServiceTest, RecommendationServiceTest
+  application.properties
+  schema.sql  sample-data.sql
+  templates/  layout.html, fragments/widgets.html, index, login, register,
+              dashboard, stocks, stock-details, recommendations, watchlist,
+              profile, error, db-error, admin/{dashboard,users,stocks,rules,market-data}
+  static/     css/style.css  js/charts.js  img/favicon.svg
+src/test/java/com/stockrecommendation/
+  service/   StockAnalysisServiceTest, RecommendationServiceTest
+  security/  StockSensePasswordEncoderTest
+  web/       SecurityRulesTest
 ```
 
 ---
@@ -228,177 +206,137 @@ mysql -u root -p < src/main/resources/schema.sql
 mysql -u root -p < src/main/resources/sample-data.sql
 ```
 
-Or open both files in **MySQL Workbench** and run them in that order.
+(or run both files in MySQL Workbench). `schema.sql` creates
+`stock_recommendation_db` with `CREATE ... IF NOT EXISTS` and never drops
+anything; `sample-data.sql` is idempotent and safe to run again.
 
-* `schema.sql` creates `stock_recommendation_db` and its 10 tables with
-  `CREATE ... IF NOT EXISTS`; it never drops anything.
-* `sample-data.sql` is idempotent (`INSERT IGNORE` / `NOT EXISTS` guards) and
-  can be run again safely.
+**Or let the app do it:** start it once with `DB_INIT=true` and an empty
+database — `DatabaseInitializer` runs both scripts only when the `users`
+table does not exist yet.
+
+Connection settings (defaults in `application.properties`, override with
+environment variables — no password in any file):
+
+| Variable | Default |
+|---|---|
+| `DB_URL` | `jdbc:mysql://localhost:3306/stock_recommendation_db?sslMode=DISABLED&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true` |
+| `DB_USER` | `root` |
+| `DB_PASSWORD` | *(empty)* |
 
 Tables: `users`, `stocks`, `stock_prices`, `stock_indicators`,
-`recommendations`, `watchlists`, `api_sync_logs`, plus
-`recommendation_rules` (engine weights), `stock_views` (recently viewed) and
-`activity_logs` (admin activity). Prices use `DECIMAL(19,4)`, never `FLOAT`.
-Key constraints: `UNIQUE(exchange, symbol)`, `UNIQUE(stock_id, recorded_at,
-data_source)`, `UNIQUE(user_id, stock_id)` on watchlists.
-
-Then set your credentials in `src/main/resources/db.properties`:
-
-```properties
-db.url=jdbc:mysql://localhost:3306/stock_recommendation_db?sslMode=DISABLED&allowPublicKeyRetrieval=true
-db.user=root
-db.password=
-```
-
-…or leave the file alone and pass them at runtime: `-Ddb.password=...` or the
-environment variable `DB_PASSWORD` (also `DB_URL`, `DB_USER`).
-
-Check the connection:
-
-```bash
-mvn compile exec:java -Dexec.mainClass=com.stockrecommendation.util.TestConnection
-```
-
-(or run `TestConnection` as a Java application in the IDE). It prints the
-MySQL version and row counts.
+`recommendations`, `watchlists`, `api_sync_logs`, `recommendation_rules`,
+`stock_views`, `activity_logs`. Prices use `DECIMAL(19,4)`. Key constraints:
+`UNIQUE(exchange, symbol)`, `UNIQUE(stock_id, recorded_at, data_source)`,
+`UNIQUE(user_id, stock_id)` on watchlists.
 
 ---
 
 ## Market data provider and API key
 
-**Provider: [Alpha Vantage](https://www.alphavantage.co/documentation/)**,
-chosen because its free key covers both US listings and Indian listings on BSE
-(`RELIANCE.BSE`), which Twelve Data and Finnhub only offer on paid plans.
+**Provider: [Alpha Vantage](https://www.alphavantage.co/documentation/)** —
+its free key covers US listings and Indian listings on BSE (`RELIANCE.BSE`).
 
-Free-tier facts the app is built around (verify on alphavantage.co/premium,
-limits change):
+Free-tier facts the app is built around (limits change; check alphavantage.co):
+about **25 requests per day** and 5 per minute; `TIME_SERIES_DAILY` compact =
+the latest **100 daily bars**; delayed **end-of-day** data, never called "live".
 
-* about **25 requests per day** and 5 per minute;
-* `TIME_SERIES_DAILY` with `outputsize=compact` = the latest **100 daily bars**
-  (so with real data the 6M and 1Y ranges are disabled until more history is
-  stored);
-* delayed **end-of-day** data — the UI never calls it "live";
-* `OVERVIEW` (market cap, 52-week range) for US listings.
+`MarketDataService` behaviour:
 
-How the integration behaves (`MarketDataService`):
+* **Cache first**: no download while the stored provider rows are younger than
+  `market.cache-minutes` (720).
+* Calls spaced by `market.min-interval-ms` (13 s); stops at
+  `market.daily-quota` (25) calls per day, counted from `api_sync_logs`.
+* Downloads stored in one transaction (`INSERT … ON DUPLICATE KEY UPDATE`,
+  `data_source = 'ALPHA_VANTAGE'`), preferred over SAMPLE rows, never mixed.
+* Errors logged and cached data kept: `Note`/`Information` → `RATE_LIMITED`,
+  `Error Message` → `NO_DATA` / `ERROR`, HTTP failures → `ERROR`. The key is
+  scrubbed from any provider message.
 
-* **Cache first**: a stock is not downloaded again while its stored provider
-  rows are younger than `market.cacheMinutes` (default 720).
-* Calls are spaced by `market.minIntervalMs` (13 s) and the app stops at 25
-  calls per day (counted from `api_sync_logs`).
-* Opening a stock page refreshes it only when stale and never waits for the
-  throttle; **Admin > Market data** offers manual and background syncs.
-* Downloads are stored in one transaction with
-  `INSERT … ON DUPLICATE KEY UPDATE` and `data_source = 'ALPHA_VANTAGE'`.
-* Errors are detected and logged, and the cached data is kept:
-  `Note` / `Information` bodies → `RATE_LIMITED`; `Error Message` →
-  `NO_DATA` (unknown symbol) or `ERROR` (bad key); HTTP errors and timeouts →
-  `ERROR`. Provider messages are scrubbed of the API key before logging.
-* Provider rows are preferred over SAMPLE rows; the two are never mixed.
-
-### Getting and setting a key
+### Setting a key
 
 1. Get a free key at <https://www.alphavantage.co/support/#api-key>.
-2. Give it to the application **without putting it in source code** — any one
-   of these works (first match wins):
+2. Set two environment variables (never commit a key):
 
    ```bash
    export MARKET_PROVIDER=ALPHA_VANTAGE
+   ```
+
+   ```bash
    export ALPHA_VANTAGE_API_KEY=your-key-here
    ```
 
-   or JVM options for Tomcat (e.g. in `$CATALINA_BASE/bin/setenv.sh`):
+3. Restart, log in as admin, open **Market data** and click **Sync**.
 
-   ```bash
-   CATALINA_OPTS="-Dmarket.provider=ALPHA_VANTAGE -Dmarket.apiKey=your-key-here"
-   ```
-
-   or, for a local copy that is never committed, `market.provider` /
-   `market.apiKey` in `src/main/resources/app.properties`.
-3. Restart Tomcat, log in as admin, open **Market data** and click **Sync**
-   on a stock (or **Sync all stale stocks**).
-
-Indian symbols use the `.BSE` suffix on Alpha Vantage. Tata Motors was
-demerged in 2025 and its listed ticker changed; if `TATAMOTORS.BSE` returns
-"NO_DATA", correct the provider symbol in **Admin > Stocks**.
+Indian symbols use the `.BSE` suffix. Tata Motors was demerged in 2025 and its
+ticker changed; if `TATAMOTORS.BSE` returns `NO_DATA`, fix the provider symbol
+in **Admin > Stocks**.
 
 ---
 
 ## Demo mode
 
-With `market.provider=DEMO` (the default) **or** no API key, the application:
+With `MARKET_PROVIDER=DEMO` (default) or no API key the app never calls the
+internet and uses only the `data_source = 'SAMPLE'` rows from
+`sample-data.sql`: 265 synthetic trading days per stock (one stock has 30, to
+show "Insufficient data"). An amber **SAMPLE DATA mode** ribbon and "Sample
+data" badges are shown everywhere; market cap stays "Not available".
 
-* never sends a network request for market data;
-* uses only the rows with `data_source = 'SAMPLE'` from `sample-data.sql`:
-  265 trading days per stock (one stock deliberately has 30, to demonstrate
-  "Insufficient data"), generated by a seeded random walk in
-  `tools/SampleDataGenerator.java`;
-* shows an amber **SAMPLE DATA mode** ribbon on every page and a "Sample data"
-  badge next to every price, chart and recommendation;
-* leaves market cap empty ("Not available") instead of inventing one.
-
-Everything else — charts, indicators, recommendations, watchlists, admin
-CRUD — works exactly the same, so the app is fully usable without a key.
-
-To regenerate the sample file (after `mvn compile`):
+Regenerate the sample file (after `mvn package`):
 
 ```bash
-java -cp "target/classes:$HOME/.m2/repository/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar" tools/SampleDataGenerator.java > src/main/resources/sample-data.sql
+java -cp "target/classes:$(mvn -q dependency:build-classpath -Dmdep.outputFile=/dev/stdout)" tools/SampleDataGenerator.java > src/main/resources/sample-data.sql
 ```
 
 ---
 
-## Build
+## Build and run
 
-Requires JDK 21 and Maven 3.8+.
+Requires JDK 21 and Maven 3.8+ (macOS/Homebrew: `export JAVA_HOME=$(brew --prefix openjdk@21)`).
 
 ```bash
 mvn clean package
 ```
 
-This compiles, runs the 13 JUnit tests and produces
-`target/stock-recommendation.war`. On macOS with Homebrew, if `java` is not on
-the PATH: `export JAVA_HOME=$(brew --prefix openjdk@21)`.
+runs the 19 tests and builds `target/stock-recommendation.jar`. Then either:
+
+```bash
+java -jar target/stock-recommendation.jar
+```
+
+```bash
+mvn spring-boot:run
+```
+
+and open <http://localhost:8080/>. Use `PORT=8090` to change the port.
 
 ---
 
-## Deploy on Tomcat 10.1
+## Deploy on Railway
 
-1. Load the database (above) and check `db.properties`.
-2. Copy the WAR into Tomcat's `webapps` folder:
-
-   ```bash
-   cp target/stock-recommendation.war $CATALINA_HOME/webapps/
-   ```
-
-3. Start Tomcat (`$CATALINA_HOME/bin/startup.sh`, or `catalina.sh run` to see
-   the log) and open <http://localhost:8080/stock-recommendation/>.
-
-The WAR ships Mojarra, Weld and Connector/J in `WEB-INF/lib`; nothing needs
-to be added to Tomcat. Tomcat 10.1 is required (Jakarta EE 10 namespace);
-Tomcat 9 will not work.
-
-### Deploy on Railway (Docker)
-
-The repository contains a `Dockerfile` (Maven build + tests, then Tomcat 10.1 /
-Java 21, app served at `/`) and `docker/start.sh` (moves Tomcat to Railway's
-`$PORT`).
+The `Dockerfile` builds the jar (running the tests) and runs it on a Java 21
+JRE; Spring Boot listens on Railway's `$PORT`.
 
 ```bash
 railway login
+```
+
+```bash
 railway init --name stock-recommendation
+```
+
+```bash
 railway add --database mysql
+```
+
+```bash
 railway add --service web
 ```
 
-Set the web service variables. They reference the MySQL service, so no
-password is copied anywhere:
+Web service variables (they reference the MySQL service, so no password is copied):
 
 ```bash
 railway variable set --service web 'DB_URL=jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/stock_recommendation_db?sslMode=DISABLED&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true' 'DB_USER=${{MySQL.MYSQLUSER}}' 'DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}' 'DB_INIT=true' 'MARKET_PROVIDER=DEMO'
 ```
-
-Deploy and get a public URL:
 
 ```bash
 railway up --service web --detach
@@ -408,41 +346,28 @@ railway up --service web --detach
 railway domain --service web
 ```
 
-Railway's MySQL is only reachable on its private network, so `DB_INIT=true`
-makes the application run `schema.sql` and `sample-data.sql` itself on first
-start (`AppLifecycleListener`). It only does so when the `users` table does not
-exist yet, so redeploys never touch existing data. To use real prices, also set
-`MARKET_PROVIDER=ALPHA_VANTAGE` and `ALPHA_VANTAGE_API_KEY`.
-
-To rename the generated `*.up.railway.app` address: Railway dashboard → the
-`web` service → **Settings → Networking** → edit the domain.
+Railway's MySQL is only reachable privately, so `DB_INIT=true` lets the app
+create the schema and sample data itself on first start; it never touches a
+database that already has tables. Rename the `*.up.railway.app` address in the
+Railway dashboard → **web** → **Settings → Networking**.
 
 ---
 
 ## Eclipse / IntelliJ setup
 
-**Eclipse (Enterprise Java and Web Developers)**
+**IntelliJ IDEA**: *File > Open* → `pom.xml` → *Open as Project*, SDK 21. Run
+`StockSenseApplication` (Community edition works — no external Tomcat needed).
 
-1. *File > Import > Maven > Existing Maven Projects*, select this folder.
-2. *Window > Preferences > Server > Runtime Environments > Add* → Apache Tomcat
-   v10.1, point it at your Tomcat folder, JRE = JDK 21.
-3. Right-click the project → *Run As > Run on Server* → Tomcat v10.1.
-4. If Eclipse shows a facet error, *Properties > Project Facets*: Java 21,
-   Dynamic Web Module 6.0, JavaServer Faces 4.0.
+**Eclipse** (with Spring Tools 4 recommended): *File > Import > Maven >
+Existing Maven Projects*, then right-click `StockSenseApplication` → *Run As >
+Java Application* (or *Spring Boot App*).
 
-**IntelliJ IDEA (Ultimate)**
-
-1. *File > Open* → `pom.xml` → *Open as Project*; Project SDK = 21.
-2. *Run > Edit Configurations > + > Tomcat Server > Local*, choose Tomcat 10.1.
-3. *Deployment* tab → *+ > Artifact* → `stock-recommendation:war exploded`,
-   application context `/stock-recommendation`.
-4. Run. (Community edition: build with `mvn package` and copy the WAR.)
+Set `DB_PASSWORD` in the run configuration's environment if your MySQL root
+user has a password.
 
 ---
 
 ## Demo credentials
-
-Created by `sample-data.sql`:
 
 | Role | Email | Password |
 |---|---|---|
@@ -451,8 +376,7 @@ Created by `sample-data.sql`:
 | User | `arjun@stocksense.test` | `User@1234` |
 | User | `emma@stocksense.test` | `User@1234` |
 
-Each demo user already has a few stocks in their watchlist. Change or remove
-these accounts before using the app anywhere but your own machine.
+Change or remove these accounts before using the app anywhere but your own machine.
 
 ---
 
@@ -468,23 +392,21 @@ Five weighted rules each give +1 / 0 / −1; the score is their weighted sum.
 | Momentum | 20-session change > +3 % | < −3 % | 10 |
 | Volume | volume ≥ 1.2 × 20-day avg, with the momentum direction | same, downward | 5 |
 
-**BUY** at score ≥ +25, **SELL** at ≤ −25, otherwise **HOLD**. Fewer than 60
-stored bars → **Insufficient data**, never a guess. Every result lists one
-reason per rule with its contribution, plus the data date and source.
-
-Weights and thresholds are editable in **Admin > Rules**. Full details:
+**BUY** at ≥ +25, **SELL** at ≤ −25, otherwise **HOLD**; fewer than 60 bars →
+**Insufficient data**. Every result lists one reason per rule with its
+contribution, plus the data date and source. Details:
 [docs/recommendation-methodology.md](docs/recommendation-methodology.md).
 
 ---
 
 ## Testing
 
-* `mvn clean package` runs 13 unit tests: SMA, EMA, RSI (Wilder's reference
-  example), MACD, volatility, short-history handling, and the engine's
-  BUY / SELL / HOLD / Insufficient / disabled-rule cases.
-* The full end-to-end checklist (registration through admin CRUD, API error
-  handling against a local stub, demo mode, authorisation, mobile layout) and
-  its results are in [docs/TESTING.md](docs/TESTING.md).
+`mvn clean package` runs **19 tests**: indicator maths (SMA, EMA, Wilder's RSI
+example, MACD, volatility), the engine's BUY / SELL / HOLD / Insufficient /
+disabled-rule cases, the password encoder against the stored demo hash, and
+MockMvc security tests (anonymous → login, USER blocked from `/admin/**`, POST
+without CSRF → 403). The end-to-end checklist and results are in
+[docs/TESTING.md](docs/TESTING.md).
 
 ---
 
@@ -492,15 +414,13 @@ Weights and thresholds are editable in **Admin > Rules**. Full details:
 
 | Symptom | Fix |
 |---|---|
-| Every page shows "Could not load …" | MySQL is not running or `db.properties` is wrong. Run `TestConnection`. |
-| `Public Key Retrieval is not allowed` | Keep `allowPublicKeyRetrieval=true` in `db.url`. |
-| `Unknown database 'stock_recommendation_db'` | Run `schema.sql` first, then `sample-data.sql`. |
-| Times are shifted by your UTC offset | Don't add `serverTimezone=UTC` to `db.url` unless MySQL and the JVM both run in UTC. |
-| 404 at `/stock-recommendation/` | The WAR did not deploy; check `logs/catalina.out`. Tomcat must be **10.1** with Java 21. |
-| `ClassNotFoundException: jakarta.faces…` or CDI errors | Tomcat 9 or an old WAR; use Tomcat 10.1 and redeploy. |
-| Charts are empty boxes | The browser could not load Chart.js from jsdelivr (offline). Data tables still show every value. |
-| "Demo mode" although a key is set | `market.provider` must also be `ALPHA_VANTAGE` (or `MARKET_PROVIDER`). Restart Tomcat after changing. |
-| Sync says `RATE_LIMITED` | Free tier used up (25/day or 5/min). Cached data stays; try again tomorrow. |
-| Sync says `NO_DATA` for an Indian stock | Check the provider symbol (`SYMBOL.BSE`) in Admin > Stocks. |
-| `View expired` after leaving a page open | The session timed out (30 min); you are sent to the login page. |
-| `java: command not found` / wrong Java | `export JAVA_HOME=$(brew --prefix openjdk@21)` (macOS) or install JDK 21. |
+| "The database is not reachable" page | MySQL not running or wrong `DB_URL` / `DB_USER` / `DB_PASSWORD`. |
+| `Public Key Retrieval is not allowed` | Keep `allowPublicKeyRetrieval=true` in `DB_URL`. |
+| `Unknown database` / empty pages | Run `schema.sql` + `sample-data.sql`, or start once with `DB_INIT=true`. |
+| Times shifted by your UTC offset | Don't add `serverTimezone=UTC` unless MySQL and the JVM both run in UTC. |
+| `Port 8080 already in use` | Start with `PORT=8090` (or stop the other program). |
+| "This form has expired" (403) | The CSRF token expired with the session; reload the page and submit again. |
+| Charts are empty boxes | Chart.js could not load from jsdelivr (offline). The tables still show every value. |
+| "Demo mode" although a key is set | `MARKET_PROVIDER` must also be `ALPHA_VANTAGE`. Restart after changing. |
+| Sync says `RATE_LIMITED` | Free tier used up (25/day or 5/min). Cached data stays. |
+| `release version 21 not supported` | Maven is using an older JDK: set `JAVA_HOME` to JDK 21. |

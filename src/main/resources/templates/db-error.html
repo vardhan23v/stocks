@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" data-bs-theme="dark">
+<head th:replace="~{layout :: head('Database unavailable')}"></head>
+<body>
+<th:block th:replace="~{layout :: top}"></th:block>
+<main class="ss-main" id="main"><div class="container-xl">
+    <div class="ss-card ss-empty">
+        <div class="ss-empty-icon"><i class="bi bi-database-x" aria-hidden="true"></i></div>
+        <h1 class="h4">The database is not reachable</h1>
+        <p>StockSense could not load its data. Check that MySQL is running and that DB_URL, DB_USER and DB_PASSWORD are correct, then try again.</p>
+        <a class="btn btn-ghost" th:href="@{/}">Back to the start page</a>
+    </div>
+</div></main>
+<footer th:replace="~{layout :: footer}"></footer>
+<th:block th:replace="~{layout :: scripts}"></th:block>
+</body>
+</html>

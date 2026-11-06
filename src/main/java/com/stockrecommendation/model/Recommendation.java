@@ -57,12 +57,12 @@ public class Recommendation implements Serializable {
     public double getMaxScore() {
         if (supportingJson != null) {
             try {
-                com.google.gson.JsonElement max = com.google.gson.JsonParser.parseString(supportingJson)
-                        .getAsJsonObject().get("maxScore");
-                if (max != null && !max.isJsonNull() && max.getAsDouble() > 0) {
-                    return max.getAsDouble();
+                com.fasterxml.jackson.databind.JsonNode max = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readTree(supportingJson).get("maxScore");
+                if (max != null && max.isNumber() && max.asDouble() > 0) {
+                    return max.asDouble();
                 }
-            } catch (RuntimeException e) {
+            } catch (com.fasterxml.jackson.core.JsonProcessingException | RuntimeException e) {
                 // fall through to the default
             }
         }

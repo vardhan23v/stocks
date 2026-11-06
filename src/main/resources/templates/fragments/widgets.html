@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!--/* Small reusable pieces, included with th:replace="~{fragments/widgets :: name(args)}". */-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+
+<!--/* Change between the two newest stored closes. compact = % only. */-->
+<th:block th:fragment="priceChange(stock, compact)">
+    <span class="ss-chip flat" th:if="${stock.percentChange == null}" title="Not enough stored prices to compare">&#8212;</span>
+    <span th:if="${stock.percentChange != null}" class="ss-chip" th:classappend="${stock.direction}">
+        <i class="bi" th:classappend="${stock.direction == 'up' ? 'bi-caret-up-fill' : (stock.direction == 'down' ? 'bi-caret-down-fill' : 'bi-dash')}" aria-hidden="true"></i>
+        <th:block th:unless="${compact}" th:text="${@fmt.signed(stock.priceChange)}"></th:block>
+        <span th:text="${compact} ? ${@fmt.percent(stock.percentChange)} : '(' + ${@fmt.percent(stock.percentChange)} + ')'"></span>
+    </span>
+</th:block>
+
+<!--/* Provenance of a price: SAMPLE DATA or the provider. Never "live". */-->
+<th:block th:fragment="dataBadge(source)">
+    <span class="ss-badge-sample" th:if="${source == 'SAMPLE'}" title="Synthetic demonstration data - not a real market price">Sample data</span>
+    <span class="ss-badge-source" th:if="${source != null and source != 'SAMPLE'}" title="Delayed end-of-day data from the configured provider"
+          th:text="${source == 'ALPHA_VANTAGE' ? 'Alpha Vantage · delayed' : source}"></span>
+    <span class="ss-badge-source" th:if="${source == null}">No data</span>
+</th:block>
+
+<th:block th:fragment="recBadge(rec)">
+    <span th:if="${rec != null}" class="ss-rec" th:classappend="${rec.recommendationType}" th:text="${rec.label}"></span>
+    <span th:if="${rec == null}" class="ss-rec INSUFFICIENT_DATA">Not evaluated</span>
+</th:block>
+
+<!--/* Position of a score between the lowest and highest possible score. */-->
+<div th:fragment="scoreBar(rec)" class="ss-score-track" role="img"
+     th:attr="aria-label=|Score ${rec.recommendationScore} on a scale from minus ${rec.maxScore} to plus ${rec.maxScore}|">
+    <span class="ss-score-dot" th:style="'left: ' + ${rec.scorePosition} + '%;'"></span>
+</div>
+
+<!--/* A recommendation card with all reasons. */-->
+<article th:fragment="recCard(r, allReasons)" class="ss-rec-card" th:classappend="${r.recommendationType}">
+    <div class="d-flex justify-content-between align-items-start gap-2">
+        <div class="text-truncate">
+            <a class="ss-symbol fs-5" th:href="@{/stocks/{id}(id=${r.stockId})}" th:text="${r.symbol}">SYM</a>
+            <span class="ss-faint small ms-1" th:text="${r.exchange}"></span>
+            <div class="ss-company text-truncate" th:text="${r.companyName}"></div>
+        </div>
+        <th:block th:replace="~{fragments/widgets :: recBadge(${r})}"></th:block>
+    </div>
+    <div th:unless="${r.insufficient}">
+        <div class="d-flex justify-content-between small ss-faint mb-1"><span>SELL</span><span>Score <span class="num ss-muted" th:text="${r.recommendationScore}"></span></span><span>BUY</span></div>
+        <div th:replace="~{fragments/widgets :: scoreBar(${r})}"></div>
+    </div>
+    <ul class="ss-reasons" th:if="${allReasons}">
+        <li th:each="reason : ${r.reasons}" th:text="${reason}"></li>
+    </ul>
+    <p class="small ss-muted mb-0 text-truncate" th:if="${!allReasons and !r.reasons.isEmpty()}" th:title="${r.reasons[0]}" th:text="${r.reasons[0]}"></p>
+    <div class="small ss-faint mt-auto">
+        Generated <th:block th:text="${@fmt.dateTime(r.generatedAt)}"></th:block>
+        &#183; data of <th:block th:text="${@fmt.date(r.dataTimestamp)}"></th:block>
+        <th:block th:if="${r.sampleData}"> &#183; <span class="ss-badge-sample">Sample</span></th:block>
+    </div>
+</article>
+
+</body>
+</html>

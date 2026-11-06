@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" data-bs-theme="dark">
+<head th:replace="~{layout :: head('Market data · Admin')}"></head>
+<body>
+<th:block th:replace="~{layout :: top}"></th:block>
+<main class="ss-main" id="main"><div class="container-xl">
+    <ul th:replace="~{layout :: messages}"></ul>
+
+    <div class="ss-page-head">
+        <div>
+            <p class="ss-eyebrow">Administrator</p>
+            <h1>Market data</h1>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-ghost" th:href="@{/admin/market-data}">Refresh</a>
+            <form th:action="@{/admin/market-data/sync-all}" method="post">
+                <button type="submit" class="btn btn-primary" th:disabled="${market.bulkSyncRunning}">Sync all stale stocks</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-5">
+            <div class="ss-card">
+                <h2 class="fs-6">Provider configuration</h2>
+                <dl class="row small mb-3">
+                    <dt class="col-6 ss-faint fw-normal">Configured provider</dt><dd class="col-6 mono" th:text="${market.configuredProvider}"></dd>
+                    <dt class="col-6 ss-faint fw-normal">API key</dt>
+                    <dd class="col-6"><span th:classappend="${market.apiKeyConfigured} ? 'up' : 'down'" th:text="${market.apiKeyConfigured} ? 'Configured (hidden)' : 'Not configured'"></span></dd>
+                    <dt class="col-6 ss-faint fw-normal">Mode</dt><dd class="col-6" th:text="${market.demoMode} ? 'Demo - sample data only' : 'Live provider (delayed EOD)'"></dd>
+                    <dt class="col-6 ss-faint fw-normal">Cache lifetime</dt><dd class="col-6" th:text="|${market.cacheMinutes} minutes|"></dd>
+                    <dt class="col-6 ss-faint fw-normal">API calls today</dt><dd class="col-6" th:text="|${callsToday} of ${market.dailyQuota} (free tier)|"></dd>
+                    <dt class="col-6 ss-faint fw-normal">Background sync</dt><dd class="col-6" th:text="${market.bulkSyncRunning} ? 'Running...' : 'Idle'"></dd>
+                </dl>
+                <p class="ss-disclaimer mb-0" th:if="${market.demoMode}">
+                    To use real delayed prices, get a free key at alphavantage.co, then set the environment variables
+                    <span class="mono">MARKET_PROVIDER=ALPHA_VANTAGE</span> and <span class="mono">ALPHA_VANTAGE_API_KEY=...</span>
+                    and restart. Keys are never stored in source code.
+                </p>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="ss-card ss-card-flush">
+                <div class="ss-card-head"><h2>Stored price data by source</h2></div>
+                <div class="table-responsive mt-2">
+                    <table class="table ss-table">
+                        <thead><tr><th scope="col">Source</th><th scope="col" class="num text-end">Rows</th><th scope="col" class="num text-end">Stocks</th><th scope="col">Newest bar</th><th scope="col">Last written</th></tr></thead>
+                        <tbody>
+                            <tr th:each="row : ${summary}">
+                                <td><th:block th:replace="~{fragments/widgets :: dataBadge(${row[0]})}"></th:block></td>
+                                <td class="num text-end" th:text="${row[1]}"></td>
+                                <td class="num text-end" th:text="${row[2]}"></td>
+                                <td class="small" th:text="${@fmt.date(row[3])}"></td>
+                                <td class="small ss-muted" th:text="${@fmt.dateTime(row[4])}"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ss-card ss-card-flush mb-4">
+        <div class="ss-card-head"><h2>Stocks</h2><span class="small ss-faint">Sync respects the cache; "Force" ignores it</span></div>
+        <div class="table-responsive mt-2 ss-scroll">
+            <table class="table table-sm ss-table">
+                <thead><tr><th scope="col">Stock</th><th scope="col">Provider symbol</th><th scope="col">Latest bar</th><th scope="col">Source in use</th><th scope="col" class="text-end">Actions</th></tr></thead>
+                <tbody>
+                    <tr th:each="s : ${stocks}">
+                        <td><span class="ss-symbol" th:text="${s.symbol}"></span> <span class="small ss-faint" th:text="${s.exchange}"></span></td>
+                        <td class="mono" th:text="${s.apiSymbol}"></td>
+                        <td class="small" th:text="${@fmt.date(s.lastUpdated)}"></td>
+                        <td><th:block th:replace="~{fragments/widgets :: dataBadge(${s.dataSource})}"></th:block></td>
+                        <td class="text-end text-nowrap">
+                            <form class="d-inline m-0" th:action="@{/admin/market-data/sync/{id}(id=${s.id})}" method="post">
+                                <button type="submit" class="btn btn-sm btn-ghost">Sync</button>
+                            </form>
+                            <form class="d-inline m-0" th:action="@{/admin/market-data/sync/{id}(id=${s.id}, force=true)}" method="post">
+                                <button type="submit" class="btn btn-sm btn-ghost ms-1">Force</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="ss-card ss-card-flush">
+        <div class="ss-card-head"><h2>Data update history</h2><span class="small ss-faint">api_sync_logs, newest 60</span></div>
+        <div class="table-responsive mt-2 ss-scroll">
+            <table class="table table-sm ss-table">
+                <thead><tr><th scope="col">When</th><th scope="col">Provider</th><th scope="col">Symbol</th><th scope="col">Status</th><th scope="col">Message</th></tr></thead>
+                <tbody>
+                    <tr th:each="l : ${logs}">
+                        <td class="num small ss-muted" th:text="${@fmt.time(l.syncedAt)}"></td>
+                        <td class="small" th:text="${l.provider}"></td>
+                        <td class="mono" th:text="${l.symbol}"></td>
+                        <td><span class="small fw-semibold" th:classappend="${l.status == 'SUCCESS'} ? 'up' : (${l.status == 'ERROR' or l.status == 'RATE_LIMITED' or l.status == 'NO_DATA'} ? 'down' : 'ss-muted')" th:text="${l.status}"></span></td>
+                        <td class="small ss-muted" th:text="${l.responseMessage}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div></main>
+<footer th:replace="~{layout :: footer}"></footer>
+<th:block th:replace="~{layout :: scripts}"></th:block>
+</body>
+</html>

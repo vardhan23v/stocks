@@ -1,6 +1,7 @@
 package com.stockrecommendation.service;
 
-import java.io.Serializable;
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -21,18 +22,27 @@ import com.stockrecommendation.model.User;
  * requireAdmin(): the AuthFilter already blocks the admin pages, and this is
  * the second, independent check on the server.
  */
-public class AdminService implements Serializable {
+@Service
+public class AdminService {
 
-    private static final long serialVersionUID = 1L;
 
+    private final UserDAO userDAO;
+    private final WatchlistDAO watchlistDAO;
+    private final RecommendationDAO recommendationDAO;
+    private final StockPriceDAO priceDAO;
+    private final SyncLogDAO syncLogDAO;
+    private final RuleDAO ruleDAO;
+    private final ActivityDAO activityDAO;
 
-    private final UserDAO userDAO = new UserDAO();
-    private final WatchlistDAO watchlistDAO = new WatchlistDAO();
-    private final RecommendationDAO recommendationDAO = new RecommendationDAO();
-    private final StockPriceDAO priceDAO = new StockPriceDAO();
-    private final SyncLogDAO syncLogDAO = new SyncLogDAO();
-    private final RuleDAO ruleDAO = new RuleDAO();
-    private final ActivityDAO activityDAO = new ActivityDAO();
+    public AdminService(UserDAO userDAO, WatchlistDAO watchlistDAO, RecommendationDAO recommendationDAO, StockPriceDAO priceDAO, SyncLogDAO syncLogDAO, RuleDAO ruleDAO, ActivityDAO activityDAO) {
+        this.userDAO = userDAO;
+        this.watchlistDAO = watchlistDAO;
+        this.recommendationDAO = recommendationDAO;
+        this.priceDAO = priceDAO;
+        this.syncLogDAO = syncLogDAO;
+        this.ruleDAO = ruleDAO;
+        this.activityDAO = activityDAO;
+    }
 
     public static void requireAdmin(User user) {
         if (user == null || !User.ROLE_ADMIN.equals(user.getRole())) {

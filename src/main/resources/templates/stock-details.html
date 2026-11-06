@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<!--/*
+  Stock details: /stocks/{id}?range=3M. StockDetailsService prepares "d"
+  (a StockDetailsView); charts get their data as JSON in data-chart attributes.
+*/-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en" data-bs-theme="dark">
+<head th:replace="~{layout :: head(${d == null ? 'Stock details' : d.stock.symbol})}"></head>
+<body>
+<th:block th:replace="~{layout :: top}"></th:block>
+<main class="ss-main" id="main"><div class="container-xl">
+    <ul th:replace="~{layout :: messages}"></ul>
+
+    <div class="ss-card ss-empty" th:if="${d == null}">
+        <div class="ss-empty-icon"><i class="bi bi-question-lg" aria-hidden="true"></i></div>
+        <h1 class="h4">Stock not found</h1>
+        <p>That stock does not exist or is no longer listed. The link may be incomplete.</p>
+        <a class="btn btn-ghost" th:href="@{/stocks}">Back to the stock explorer</a>
+    </div>
+
+    <th:block th:if="${d != null}" th:with="s=${d.stock}, ind=${d.indicator}, rec=${d.recommendation}">
+        <nav aria-label="Breadcrumb" class="small mb-2">
+            <a th:href="@{/stocks}">Stocks</a> <span class="ss-faint">/</span> <span class="ss-muted" th:text="${s.symbol}"></span>
+        </nav>
+
+        <!-- Header: name, price, provenance, watchlist button -->
+        <div class="ss-card mb-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-7">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <h1 class="m-0" th:text="${s.companyName}"></h1>
+                        <span class="ss-rec SELL" th:unless="${s.active}">Inactive</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-center ss-muted small">
+                        <span class="ss-symbol fs-6" th:text="${s.symbol}"></span>
+                        <span class="ss-badge-source" th:text="${s.exchange}"></span>
+                        <span th:text="${s.sector}"></span><span class="ss-faint">&#183;</span><span th:text="${s.industry}"></span>
+                    </div>
+                </div>
+                <div class="col-lg-5 text-lg-end">
+                    <th:block th:if="${s.hasPrice}">
+                        <div class="ss-price-big" th:text="${s.currencySymbol} + ${@fmt.money(s.latestPrice)}"></div>
+                        <div class="mt-1">
+                            <th:block th:replace="~{fragments/widgets :: priceChange(${s}, false)}"></th:block>
+                            <span class="small ss-faint ms-1">vs previous close</span>
+                        </div>
+                        <div class="small ss-muted mt-2">
+                            Close of <th:block th:text="${@fmt.date(d.newestDate)}"></th:block> &#183;
+                            <th:block th:replace="~{fragments/widgets :: dataBadge(${s.dataSource})}"></th:block>
+                        </div>
+                    </th:block>
+                    <div class="ss-muted" th:unless="${s.hasPrice}">No price data is stored for this stock yet.</div>
+                </div>
+            </div>
+            <hr class="my-3"/>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <p class="small ss-muted m-0">
+                    Source: <strong th:text="${d.dataSourceLabel}"></strong> &#183; <th:block th:text="${d.barCount}"></th:block> stored daily bars.
+                    Prices are end-of-day closes, not live quotes.
+                </p>
+                <form th:action="${d.watched} ? @{/watchlist/remove} : @{/watchlist/add}" method="post" class="m-0">
+                    <input type="hidden" name="stockId" th:value="${s.id}"/>
+                    <input type="hidden" name="returnTo" th:value="${currentUrl}"/>
+                    <button type="submit" class="btn" th:classappend="${d.watched} ? 'btn-ghost' : 'btn-primary'"
+                            th:text="${d.watched} ? 'Remove from watchlist' : '★ Add to watchlist'"></button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Key statistics -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-4 col-xl-2"><div class="ss-stat">
+                <div class="ss-stat-label">Volume</div>
+                <div class="ss-stat-value ss-stat-small num" th:text="${s.latestVolume != null} ? ${@fmt.whole(s.latestVolume)} : 'Not available'"></div>
+                <div class="ss-stat-note">Latest session</div>
+            </div></div>
+            <div class="col-6 col-md-4 col-xl-2"><div class="ss-stat">
+                <div class="ss-stat-label" th:text="|${d.range} change|">Change</div>
+                <div class="ss-stat-value ss-stat-small num" th:classappend="${d.rangeDirection}" th:text="${@fmt.percent(d.rangeChangePercent)}"></div>
+                <div class="ss-stat-note">Selected range</div>
+            </div></div>
+            <div class="col-6 col-md-4 col-xl-2"><div class="ss-stat">
+                <div class="ss-stat-label">52-week high</div>
+                <div class="ss-stat-value ss-stat-small num" th:text="${d.high52 != null} ? ${@fmt.money(d.high52)} : 'Not available'"></div>
+                <div class="ss-stat-note" th:text="${d.range52Note}"></div>
+            </div></div>
+            <div class="col-6 col-md-4 col-xl-2"><div class="ss-stat">
+                <div class="ss-stat-label">52-week low</div>
+                <div class="ss-stat-value ss-stat-small num" th:text="${d.low52 != null} ? ${@fmt.money(d.low52)} : 'Not available'"></div>
+                <div class="ss-stat-note" th:text="${d.range52Note}"></div>
+            </div></div>
+            <div class="col-6 col-md-4 col-xl-2"><div class="ss-stat">
+                <div class="ss-stat-label">Market cap</div>
+                <div class="ss-stat-value ss-stat-small num" th:text="${s.marketCap != null} ? ${@fmt.whole(s.marketCap)} : 'Not available'"></div>
+                <div class="ss-stat-note" th:text="${s.marketCap == null} ? 'Only shown when a provider reports it' : |${s.currency} · ${s.fundamentalsSource}|"></div>
+            </div></div>
+            <div class="col-6 col-md-4 col-xl-2"><div class="ss-stat">
+                <div class="ss-stat-label">Volatility</div>
+                <div class="ss-stat-value ss-stat-small num" th:text="${ind.volatility != null} ? ${@fmt.decimal(ind.volatility, '0.0')} + '%' : 'Insufficient data'"></div>
+                <div class="ss-stat-note">Annualised, last 60 sessions</div>
+            </div></div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <!-- Charts -->
+            <div class="col-xl-8">
+                <div class="ss-card">
+                    <div class="ss-card-head flex-wrap">
+                        <h2>Price history</h2>
+                        <div class="ss-segmented" role="group" aria-label="Chart range">
+                            <span class="is-disabled" title="Intraday data is not available: the provider supplies end-of-day bars only">1D</span>
+                            <th:block th:each="r : ${d.ranges}">
+                                <a th:if="${r.available}" th:href="@{/stocks/{id}(id=${s.id}, range=${r.code})}" th:title="${r.label}"
+                                   th:classappend="${r.code == d.range} ? 'is-active'" th:text="${r.code}"></a>
+                                <span th:unless="${r.available}" class="is-disabled" th:title="|Not enough stored history for ${r.label}|" th:text="${r.code}"></span>
+                            </th:block>
+                        </div>
+                    </div>
+                    <p class="small mb-2" th:if="${d.sampleData}"><span class="ss-badge-sample">Sample data</span> <span class="ss-muted">Synthetic series for demonstration - not real prices.</span></p>
+                    <div class="ss-chart ss-chart-lg" data-chart-kind="price" th:attr="data-chart=${d.chartJson}"></div>
+                    <h3 class="mt-4 mb-2 small ss-faint text-uppercase">Volume</h3>
+                    <div class="ss-chart ss-chart-sm" data-chart-kind="volume" th:attr="data-chart=${d.chartJson}"></div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <h3 class="mb-2 small ss-faint text-uppercase">RSI (14)</h3>
+                            <div class="ss-chart ss-chart-md" data-chart-kind="rsi" th:attr="data-chart=${d.chartJson}"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <h3 class="mb-2 small ss-faint text-uppercase">MACD (12, 26, 9)</h3>
+                            <div class="ss-chart ss-chart-md" data-chart-kind="macd" th:attr="data-chart=${d.chartJson}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation -->
+            <div class="col-xl-4">
+                <div class="ss-rec-card" th:classappend="${rec != null} ? ${rec.recommendationType}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="m-0 fs-6">Rule-based recommendation</h2>
+                        <th:block th:replace="~{fragments/widgets :: recBadge(${rec})}"></th:block>
+                    </div>
+                    <th:block th:if="${rec != null}">
+                        <div th:unless="${rec.insufficient}">
+                            <div class="d-flex justify-content-between small ss-faint mb-1"><span>SELL</span><span>Score <span class="num ss-muted" th:text="${rec.recommendationScore}"></span></span><span>BUY</span></div>
+                            <div th:replace="~{fragments/widgets :: scoreBar(${rec})}"></div>
+                        </div>
+                        <ul class="ss-reasons">
+                            <li th:each="reason : ${rec.reasons}" th:text="${reason}"></li>
+                        </ul>
+                        <div class="small ss-faint">
+                            Generated <th:block th:text="${@fmt.dateTime(rec.generatedAt)}"></th:block>
+                            from data of <th:block th:text="${@fmt.date(rec.dataTimestamp)}"></th:block>
+                            (<th:block th:text="${rec.dataSource == 'SAMPLE'} ? 'SAMPLE DATA' : ${rec.dataSource}"></th:block>).
+                        </div>
+                    </th:block>
+                    <p class="ss-disclaimer m-0">
+                        Educational output of fixed technical rules, not personalised financial advice.
+                        <a th:href="@{/recommendations} + '#methodology'">How the score works</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicators -->
+        <div class="ss-card mb-3">
+            <div class="ss-card-head">
+                <h2>Technical indicators</h2>
+                <span class="small ss-faint" th:text="|Latest values, calculated in Java from ${d.barCount} stored bars|"></span>
+            </div>
+            <div class="row g-3">
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">SMA 20</div>
+                    <div class="ss-indicator-value num" th:text="${ind.sma != null} ? ${@fmt.money(ind.sma)} : 'Insufficient data'"></div>
+                    <div class="ss-indicator-help">
+                        Average close of the last 20 sessions.
+                        <th:block th:if="${d.distanceFromSma != null}">The price is
+                            <span class="num" th:classappend="${d.distanceFromSma.signum() >= 0} ? 'up' : 'down'" th:text="${d.distanceFromSma} + '%'"></span> from it.</th:block>
+                    </div>
+                </div></div>
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">SMA 50</div>
+                    <div class="ss-indicator-value num" th:text="${ind.smaLong != null} ? ${@fmt.money(ind.smaLong)} : 'Insufficient data'"></div>
+                    <div class="ss-indicator-help">Longer-term trend. SMA 20 above SMA 50 is commonly read as a short-term uptrend.</div>
+                </div></div>
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">EMA 20</div>
+                    <div class="ss-indicator-value num" th:text="${ind.ema != null} ? ${@fmt.money(ind.ema)} : 'Insufficient data'"></div>
+                    <div class="ss-indicator-help">Like SMA 20 but weights recent closes more, so it reacts faster.</div>
+                </div></div>
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">RSI 14</div>
+                    <div class="ss-indicator-value num" th:text="${ind.rsi != null} ? ${@fmt.decimal(ind.rsi, '0.0')} : 'Insufficient data'"></div>
+                    <div class="ss-indicator-help" th:text="${ind.rsiZone} + '.'"></div>
+                </div></div>
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">MACD</div>
+                    <div class="ss-indicator-value num" th:text="${ind.macd != null} ? ${@fmt.decimal(ind.macd, '0.000')} : 'Insufficient data'"></div>
+                    <div class="ss-indicator-help">EMA 12 minus EMA 26: positive when short-term momentum is stronger.</div>
+                </div></div>
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">Signal line</div>
+                    <div class="ss-indicator-value num" th:text="${ind.signalLine != null} ? ${@fmt.decimal(ind.signalLine, '0.000')} : 'Insufficient data'"></div>
+                    <div class="ss-indicator-help">
+                        9-period EMA of MACD.
+                        <th:block th:if="${ind.macdHistogram != null}">MACD is <th:block th:text="${ind.macdHistogram.signum() >= 0} ? 'above' : 'below'"></th:block> it
+                            (histogram <span class="num" th:text="${ind.macdHistogram}"></span>).</th:block>
+                    </div>
+                </div></div>
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">20-session change</div>
+                    <div class="ss-indicator-value num" th:classappend="${ind.momentum == null} ? '' : (${ind.momentum.signum() >= 0} ? 'up' : 'down')"
+                         th:text="${ind.momentum != null} ? ${@fmt.percent(ind.momentum)} : 'Insufficient data'"></div>
+                    <div class="ss-indicator-help">Price momentum over roughly one month of trading.</div>
+                </div></div>
+                <div class="col-sm-6 col-lg-3"><div class="ss-indicator">
+                    <div class="ss-indicator-name">Volume vs average</div>
+                    <div class="ss-indicator-value num" th:text="${ind.volumeRatio != null} ? ${@fmt.decimal(ind.volumeRatio, '0.00')} + '×' : 'Not available'"></div>
+                    <div class="ss-indicator-help">Latest volume divided by the 20-session average.</div>
+                </div></div>
+            </div>
+            <p class="small ss-faint mt-3 mb-0">These readings are common analytical interpretations, not guaranteed buy or sell signals.</p>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="ss-card ss-card-flush">
+                    <div class="ss-card-head">
+                        <h2 th:text="|Daily prices · ${d.range}|">Daily prices</h2>
+                        <th:block th:replace="~{fragments/widgets :: dataBadge(${d.dataSource})}"></th:block>
+                    </div>
+                    <div class="ss-empty" th:if="${d.rangeBars.isEmpty()}">No stored prices for this range.</div>
+                    <div class="table-responsive ss-scroll mt-2" th:unless="${d.rangeBars.isEmpty()}">
+                        <table class="table table-sm ss-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Date</th>
+                                    <th scope="col" class="num text-end">Open</th>
+                                    <th scope="col" class="num text-end">High</th>
+                                    <th scope="col" class="num text-end">Low</th>
+                                    <th scope="col" class="num text-end">Close</th>
+                                    <th scope="col" class="num text-end">Volume</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="b : ${d.rangeBars}">
+                                    <td class="num" th:text="${@fmt.date(b.recordedAt)}"></td>
+                                    <td class="num text-end" th:text="${@fmt.money(b.openPrice)}"></td>
+                                    <td class="num text-end" th:text="${@fmt.money(b.highPrice)}"></td>
+                                    <td class="num text-end" th:text="${@fmt.money(b.lowPrice)}"></td>
+                                    <td class="num text-end fw-semibold" th:text="${@fmt.money(b.closePrice)}"></td>
+                                    <td class="num text-end ss-muted" th:text="${@fmt.whole(b.volume)}"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="ss-card">
+                    <h2 class="fs-6" th:text="|About ${s.companyName}|"></h2>
+                    <p class="ss-muted small" th:text="${s.description} ?: 'No description has been added.'"></p>
+                    <dl class="row small mb-0">
+                        <dt class="col-5 ss-faint fw-normal">Ticker</dt><dd class="col-7" th:text="${s.symbol}"></dd>
+                        <dt class="col-5 ss-faint fw-normal">Exchange</dt><dd class="col-7" th:text="${s.exchange}"></dd>
+                        <dt class="col-5 ss-faint fw-normal">Provider symbol</dt><dd class="col-7 mono" th:text="${s.apiSymbol}"></dd>
+                        <dt class="col-5 ss-faint fw-normal">Currency</dt><dd class="col-7" th:text="${s.currency}"></dd>
+                        <dt class="col-5 ss-faint fw-normal">Sector</dt><dd class="col-7" th:text="${s.sector}"></dd>
+                        <dt class="col-5 ss-faint fw-normal">Industry</dt><dd class="col-7 mb-0" th:text="${s.industry}"></dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </th:block>
+</div></main>
+<footer th:replace="~{layout :: footer}"></footer>
+<th:block th:replace="~{layout :: scripts}"></th:block>
+</body>
+</html>

@@ -1,13 +1,13 @@
 package com.stockrecommendation.service;
 
-import java.io.Serializable;
+import org.springframework.stereotype.Service;
+
 import java.util.Locale;
 import java.util.regex.Pattern;
 
 import com.stockrecommendation.dao.ActivityDAO;
 import com.stockrecommendation.dao.UserDAO;
 import com.stockrecommendation.model.User;
-import com.stockrecommendation.util.DataAccessException;
 import com.stockrecommendation.util.PasswordUtil;
 
 /**
@@ -18,41 +18,29 @@ import com.stockrecommendation.util.PasswordUtil;
  * learns nothing about which emails exist. Registration validates its input
  * again here: the HTML form is only a convenience, never the security check.
  */
-public class AuthService implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+@Service
+public class AuthService {
 
 
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$");
 
-    private final UserDAO userDAO = new UserDAO();
-    private final ActivityDAO activityDAO = new ActivityDAO();
+    private final UserDAO userDAO;
+    private final ActivityDAO activityDAO;
 
-    /**
-     * @return the logged-in User, or null when the credentials are not valid
-     * @throws IllegalStateException when the password is right but the account was deactivated
-     */
-    public User login(String email, String password) {
-        if (email == null || password == null || email.isBlank() || password.isEmpty()) {
-            return null;
-        }
-        User user = userDAO.findByEmail(email.trim().toLowerCase(Locale.ROOT));
-        if (user == null || !PasswordUtil.matches(password, user.getPasswordHash())) {
-            return null;
-        }
-        if (!user.isActive()) {
-            throw new IllegalStateException("This account has been deactivated. Please contact the administrator.");
-        }
-        user.setPasswordHash(null);   // the hash is not needed in the session
+    public AuthService(UserDAO userDAO, ActivityDAO activityDAO) {
+        this.userDAO = userDAO;
+        this.activityDAO = activityDAO;
+    }
+
+    /** Writes the LOGIN line of the activity log (called by Spring Security on success). */
+    public void recordLogin(User user) {
         activityDAO.log(user.getId(), "LOGIN", user.getEmail());
-        return user;
     }
 
     /**
      * Creates a regular USER account. Administrators cannot be self-registered.
      *
      * @throws IllegalArgumentException with a message safe to show to the user
-     * @throws DataAccessException      when the database rejects the insert
      */
     public User register(String name, String email, String password, String confirmPassword) {
         String cleanName = name == null ? "" : name.trim();

@@ -1,6 +1,7 @@
 package com.stockrecommendation.service;
 
-import java.io.Serializable;
+import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,14 +19,19 @@ import com.stockrecommendation.model.Watchlist;
  * can only ever be read or changed by its owner. The duplicate rule is checked
  * here first and enforced by UNIQUE (user_id, stock_id) in the database.
  */
-public class WatchlistService implements Serializable {
+@Service
+public class WatchlistService {
 
-    private static final long serialVersionUID = 1L;
 
+    private final WatchlistDAO watchlistDAO;
+    private final StockDAO stockDAO;
+    private final StockService stockService;
 
-    private final WatchlistDAO watchlistDAO = new WatchlistDAO();
-    private final StockDAO stockDAO = new StockDAO();
-    private final StockService stockService = new StockService();
+    public WatchlistService(WatchlistDAO watchlistDAO, StockDAO stockDAO, StockService stockService) {
+        this.watchlistDAO = watchlistDAO;
+        this.stockDAO = stockDAO;
+        this.stockService = stockService;
+    }
 
     public List<Watchlist> getWatchlist(User user, String sort) {
         requireUser(user);
